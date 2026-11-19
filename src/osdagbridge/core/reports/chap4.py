@@ -1,13 +1,8 @@
-from .tables import repeated_header
+from .tables import load_longtable, repeated_header
+from .design_results import DEFLECTION_CRITERIA, governing, grillage_deflections
 
 from typing import TYPE_CHECKING
-from osdagbridge.core.utils.common import (
-    KEY_SPAN,
-    KEY_TS_NO_OF_GIRDERS,
-    KEY_SD_DEFL_LIVE,
-    KEY_SD_DEFL_TOTAL,
-)
-from osdagbridge.core.reports.report_utils import _tex, _fig_embed
+from osdagbridge.core.reports.report_utils import _tex, _fig_embed, _finite_number
 
 if TYPE_CHECKING:
     from .report_generator import ReportDataBridge
@@ -24,10 +19,8 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
     rxn_summary = {k: v for k, v in rxn_summary.items() if not _is_moving(k)}
 
     def _fmt(val, nd=3):
-        try:
-            return f"{float(val):.{nd}f}"
-        except (TypeError, ValueError):
-            return r"---"
+        number = _finite_number(val)
+        return f"{number:.{nd}f}" if number is not None else "Not calculated"
 
     def _merged_row(lc, bm_d, rxn_d):
         bm_d  = bm_d  or {}
@@ -51,32 +44,27 @@ def ch4_analysis(asum, fig_paths, bridge: "ReportDataBridge", span_m: float):
         for lc in all_lcs
     ) if all_lcs else r"--- & --- & --- & --- & --- & --- & --- & --- & --- \\[6pt]"
 
-    _span_m         = float(bridge.input_dict.get(KEY_SPAN, 0) or 0)
-    _allow_live_mm  = _span_m * 1000.0 / 800.0
-    _allow_total_mm = _span_m * 1000.0 / 600.0
+    reaction_body = "".join(
+        " & ".join((_tex(case), _fmt(row.get("left_kN")), _fmt(row.get("right_kN"))))
+        + r" \\" + "\n\\hline\n" for case, row in rxn_summary.items()
+    ) or r"Not calculated & --- & --- \\"
+    reactions = load_longtable(
+        "Reactions at Supports", "|L{7.4cm}|R{4cm}|R{4cm}|",
+        r"\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\",
+        reaction_body,
+    )
+    displacement = list(grillage_deflections(bridge.input_dict, bridge.output_dict))
 
-    # Find governing girder — worst (max) deflection across all girders
-    try:
-        n = int(bridge.input_dict.get(KEY_TS_NO_OF_GIRDERS, 1) or 1)
-    except (TypeError, ValueError):
-        n = 1
+    def deflection(name):
+        row = governing(check for check in displacement if check.name == name)
+        if row is None:
+            return "Not calculated", "Not calculated", "NOT EVALUATED"
+        measured = f"{row.demand:.3f} mm ({row.member})" if row.demand is not None else "Not calculated"
+        limit = f"{row.capacity:.2f} mm" if row.capacity is not None else "Not provided"
+        return measured, limit, row.status.value
 
-    _live_mm  = None
-    _total_mm = None
-    for _gi in range(1, n + 1):
-        _l = bridge.output_dict.get(f"{KEY_SD_DEFL_LIVE}.G{_gi}")
-        _t = bridge.output_dict.get(f"{KEY_SD_DEFL_TOTAL}.G{_gi}")
-        if _l is not None:
-            _live_mm  = max(_live_mm, float(_l))  if _live_mm  is not None else float(_l)
-        if _t is not None:
-            _total_mm = max(_total_mm, float(_t)) if _total_mm is not None else float(_t)
-
-    _live_str        = f"{_live_mm:.3f} mm"  if _live_mm  is not None else "---"
-    _total_str       = f"{_total_mm:.3f} mm" if _total_mm is not None else "---"
-    _allow_live_str  = f"L/800 = {_allow_live_mm:.1f} mm"
-    _allow_total_str = f"L/600 = {_allow_total_mm:.1f} mm"
-    _live_status     = ("PASS" if _live_mm  <= _allow_live_mm  else r"\textcolor{red}{FAIL}") if _live_mm  is not None else "---"
-    _total_status    = ("PASS" if _total_mm <= _allow_total_mm else r"\textcolor{red}{FAIL}") if _total_mm is not None else "---"
+    _live_str, _allow_live_str, _live_status = deflection(DEFLECTION_CRITERIA[0][0])
+    _total_str, _allow_total_str, _total_status = deflection(DEFLECTION_CRITERIA[1][0])
     return r"""
 \chapter{Analysis Results}
 
@@ -141,15 +129,7 @@ A grillage model was used for structural analysis. The deck is idealized as a gr
 \endgroup
 
 \reportTableGap
-\begin{longtable}{|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|>{\centering\arraybackslash}p{5.2cm}|}
-\caption{\textbf{Reactions at Supports}}\\
-""" + repeated_header(r"\textbf{Load Case} & \textbf{Left Support (kN)} & \textbf{Right Support (kN)} \\[6pt]") + r""" & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
- & """ + '' + r""" & """ + '' + r""" \\[6pt]
-\hline
-\end{longtable}
+""" + reactions + r"""
 
 \reportTableGap
 \begin{longtable}{|L{7cm}|p{8.5cm}|}

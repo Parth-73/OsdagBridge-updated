@@ -120,6 +120,7 @@ from osdagbridge.core.utils.common import (
 )
 
 from osdagbridge.core.reports.report_utils import _tex
+from .inputs import prepare_report_inputs
 from .executive_summary import executive_summary
 from .styles import break_long_words, preamble
 from .chap1 import ch1_project_info
@@ -579,66 +580,7 @@ def build_report_payload(request, input_dict, output_dict):
             report_date   = rd,
             reviewer      = getattr(request.metadata, 'reviewer', ''))
 
-        # Inject detailed project location and weather data into input_dict dict
-        try:
-            import ast
-            if isinstance(raw_pl, str) and '{' in raw_pl:
-                pl_dict = ast.literal_eval(raw_pl)
-            elif isinstance(raw_pl, dict):
-                pl_dict = raw_pl
-            else:
-                pl_dict = {}
-                
-            if pl_dict and isinstance(pl_dict, dict):
-                data = pl_dict.get('data', {})
-                weather = pl_dict.get('weather_data', {})
-                
-                # We prioritize manual inputs if they exist, else we use the DB/map coordinates
-                lat_val = data.get('latitude') or weather.get('latitude')
-                lon_val = data.get('longitude') or weather.get('longitude')
-                
-                if 'latitude' not in input_dict and lat_val:
-                    input_dict['latitude'] = lat_val
-                if 'longitude' not in input_dict and lon_val:
-                    input_dict['longitude'] = lon_val
-                    
-                if 'seismic_zone' not in input_dict and weather.get('zone'):
-                    input_dict['seismic_zone'] = weather.get('zone')
-                if 'wind_speed' not in input_dict and weather.get('wind_speed'):
-                    input_dict['wind_speed'] = weather.get('wind_speed')
-                if 'shade_temp_max' not in input_dict and weather.get('max_temp'):
-                    input_dict['shade_temp_max'] = weather.get('max_temp')
-                if 'shade_temp_min' not in input_dict and weather.get('min_temp'):
-                    input_dict['shade_temp_min'] = weather.get('min_temp')
-        except Exception as e:
-            logger.warning(f"Failed to parse project location data: {e}")
-
-        # ── Table 3.6 rows 3 & 4: effective bridge temp range and rise/fall ────
-        # The computed keys live in output_dict (which is a snapshot of input_dict
-        # at design time). Merge them into input_dict if not already present.
-        for _tkey in (KEY_TL_BRIDGE_TEMP_MIN, KEY_TL_BRIDGE_TEMP_MAX,
-                      KEY_TL_TEMP_RISE, KEY_TL_TEMP_FALL):
-            if not input_dict.get(_tkey) and output_dict.get(_tkey):
-                input_dict[_tkey] = output_dict[_tkey]
-
-        # If still missing, compute from whatever temperature inputs are available.
-        if not input_dict.get(KEY_TL_BRIDGE_TEMP_MIN):
-            try:
-                max_str = input_dict.get(KEY_TL_HIGHEST_MAX_TEMP) or input_dict.get('shade_temp_max')
-                min_str = input_dict.get(KEY_TL_LOWEST_MIN_TEMP)  or input_dict.get('shade_temp_min')
-                if max_str and min_str:
-                    from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
-                    res   = IRC6_2017.cl_215_2_effective_bridge_temperature(
-                                float(max_str), float(min_str), 'metallic', False)
-                    t_min = res.get('T_min', 0)
-                    t_max = res.get('T_max', 0)
-                    mean  = (t_max + t_min) / 2.0
-                    input_dict[KEY_TL_BRIDGE_TEMP_MIN] = f"{t_min:.2f}"
-                    input_dict[KEY_TL_BRIDGE_TEMP_MAX] = f"{t_max:.2f}"
-                    input_dict[KEY_TL_TEMP_RISE]       = f"{t_max - mean:.2f}"
-                    input_dict[KEY_TL_TEMP_FALL]       = f"{mean - t_min:.2f}"
-            except Exception as _te:
-                logger.warning(f"Could not compute temperature values for report: {_te}")
+        input_dict = prepare_report_inputs(input_dict, output_dict or {}, raw_pl)
 
         asum = {}
         if output_dict:
@@ -744,7 +686,7 @@ def generate_report(payload, request):
             tmp_images = os.path.join(tmp_dir, 'images')
             os.makedirs(tmp_images, exist_ok=True)
             fig_paths = {}
-            for attr, img_bytes in list(payload.figure_data.items()):
+            for attr, img_bytes in (payload.figure_data.items() if payload.options.include_figures else ()):
                 if img_bytes:
                     p = os.path.join(tmp_images, attr + '.png')
                     with open(p, 'wb') as fh:

@@ -1,4 +1,4 @@
-from .tables import repeated_header
+from .tables import load_longtable, repeated_header
 
 # Chapter 2: Input Parameters — exact LaTeX template match
 
@@ -23,6 +23,8 @@ from osdagbridge.core.utils.common import (
     KEY_INCLUDE_MEDIAN,
     KEY_MD_TYPE,
     KEY_MP_CB_BRACING_SECTION_DESIGNATION,
+    KEY_MP_CB_TOP_CHORD_SECTION_DESIG,
+    KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG,
     KEY_MP_CB_MEMBER_ID,
     KEY_MP_CB_SELECT_GIRDERS,
     KEY_MP_CB_SPACING,
@@ -72,7 +74,7 @@ from osdagbridge.core.utils.common import (
     KEY_WC_THICKNESS
 )
 
-from osdagbridge.core.reports.report_utils import _render_value, get_girder_entries, _tex
+from osdagbridge.core.reports.report_utils import _render_value, get_girder_entries, _tex, quantity
 
 def ch2_input_parameters(m, input_dict, output_dict=None):
     girder_entries = get_girder_entries(input_dict)
@@ -91,12 +93,12 @@ def ch2_input_parameters(m, input_dict, output_dict=None):
 \setlength{\abovecaptionskip}{2pt}
 \setlength{\belowcaptionskip}{2pt}
 
-This section documents all inputs provided to OsdagBridge. User-provided inputs are clearly distinguished from software-assumed defaults. Where the user did not supply a value, the software has applied the IRC/IS code default or an empirical guideline; these are annotated with an asterisk (\sdstar{}).
+This section documents all inputs provided to OsdagBridge. User-provided inputs are clearly distinguished from software-assumed defaults. Documented software defaults are annotated with an asterisk (\sdstar{}).
 
 \section{Basic Inputs (User-Defined)}
 \label{sec:basic-inputs}
 
-\noindent\textit{Note: These inputs are mandatory and were provided by the user.}
+\noindent\textit{Location values come from the stored project data. Missing values are identified explicitly.}
 
 \begin{table}[H]
 \caption{\textbf{Project Location}}
@@ -107,13 +109,13 @@ This section documents all inputs provided to OsdagBridge. User-provided inputs 
 \hline
 \textnormal{Project Location} & """ + _tex(m.project_location) + r""" \\
 \hline
-\textnormal{Latitude / Longitude} & """ + (_render_value(input_dict,'latitude')) + ', ' + (_render_value(input_dict,'longitude')) + r""" \\
+\textnormal{Latitude / Longitude} & """ + (_render_value(input_dict, 'latitude', missing='Not provided')) + ', ' + (_render_value(input_dict, 'longitude', missing='Not provided')) + r""" \\
 \hline
-\textnormal{Seismic Zone (IRC 6)} & """ + (_render_value(input_dict,'seismic_zone')) + r""" \\
+\textnormal{Seismic Zone (IRC 6)} & """ + (_render_value(input_dict, 'seismic_zone', missing='Not provided')) + r""" \\
 \hline
-\textnormal{Basic Wind Speed (IRC 6)} & """ + (_render_value(input_dict,'wind_speed', ' m/s')) + r""" \\
+\textnormal{Basic Wind Speed (IRC 6)} & """ + (_render_value(input_dict, 'wind_speed', ' m/s', missing='Not provided')) + r""" \\
 \hline
-\textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict,'shade_temp_max','')) + r""" °C / """ + (_render_value(input_dict,'shade_temp_min','')) + r""" °C \\
+\textnormal{Shade Temp. Max / Min (IRC 6)} & """ + (_render_value(input_dict, 'shade_temp_max','', missing='Not provided')) + r""" °C / """ + (_render_value(input_dict, 'shade_temp_min','', missing='Not provided')) + r""" °C \\
 \hline
 \end{tabular}
 \vspace{0.4cm}
@@ -208,7 +210,7 @@ Where the user has modified additional inputs, those values are reported here. W
 
 """ + _girder_tables(input_dict, n_girders) + r"""
 
-""" + _bracing_tables(input_dict, n_girders) + r"""
+""" + _bracing_tables(input_dict, n_girders) + "\n" + bracing_selection_table(input_dict, output_dict or {}) + r"""
 
 """ + _shear_connector_table(input_dict, output_dict) + r"""
 
@@ -236,17 +238,17 @@ def _girder_tables(input_dict, n_girders):
     # Helper: one girder-dimension row
     def _dim_row(g_lbl, i):
         return (g_lbl + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_DEPTH}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_DEPTH}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_WEB_THICKNESS}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_WEB_THICKNESS}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_TOP_FLANGE_WIDTH}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + ', '
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_TOP_FLANGE_THICKNESS}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_BOTTOM_FLANGE_WIDTH}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + ', '
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G{i}.M1", ' mm'))
+                + (quantity(input_dict.get(f"{KEY_MP_GIRDER_BOTTOM_FLANGE_THICKNESS}.G{i}.M1"), scale=1000, missing="Not provided"))
                 + r""" \\[8pt]
 \hline
 """)
@@ -374,7 +376,7 @@ def _bracing_tables(input_dict, n_girders):
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: Cross Bracing Details}}\\
-""" + repeated_header(r"\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Bracing Section} & \textbf{Spacing (m)} \\")
+""" + repeated_header(r"\textbf{Location} & \textbf{Member IDs} & \textbf{Type of Bracing} & \textbf{Initial Bracing Section} & \textbf{Spacing (m)} \\")
 + cb_rows
 + r"""\end{longtable}
 
@@ -388,6 +390,45 @@ def _bracing_tables(input_dict, n_girders):
 + r"""\end{longtable}
 \endgroup
 """)
+
+
+def bracing_selection_table(inputs, outputs):
+    """Compare seed sections with the section used by each stored direction check."""
+    from osdagbridge.core.bridge_types.plate_girder.results_data import _extract_osdag_summary
+
+    rows = []
+    pairs = outputs.get("crossbracing_design_results") or {}
+    for pair, members in pairs.items():
+        left = pair.split("-", 1)[0]
+        if not left.startswith("G") or not left[1:].isdigit():
+            continue
+        index = int(left[1:])
+        suffix = f".{pair.replace('-', '')}.B{index}M1"
+        for member, results in members.items():
+            keys = ((KEY_MP_CB_BRACING_SECTION_DESIGNATION,) if member == "diagonal" else
+                    (KEY_MP_CB_TOP_CHORD_SECTION_DESIG, KEY_MP_CB_BOTTOM_CHORD_SECTION_DESIG))
+            initial = list(dict.fromkeys(str(inputs[key + suffix]) for key in keys if inputs.get(key + suffix)))
+            for direction, raw in results.items():
+                design = _extract_osdag_summary(raw or {})
+                final = design.get("section")
+                if not final:
+                    status = "Not evaluated"
+                elif not initial:
+                    status = "Design selection returned"
+                else:
+                    status = "Retained" if final in initial else "Changed by design"
+                rows.append(" & ".join(map(_tex, (
+                    pair, f"{member.capitalize()} / {direction}", " / ".join(initial) or "Not provided",
+                    final or "Not calculated", status,
+                ))) + r" \\" + "\n\\hline\n")
+    if not rows:
+        return r"\par\noindent Cross-bracing section selection results were not recorded."
+    return load_longtable(
+        "Cross Bracing: Initial and Design-Selected Sections",
+        "|L{1.8cm}|L{3.1cm}|L{3.5cm}|L{3.5cm}|L{3.2cm}|",
+        r"\textbf{Pair} & \textbf{Check} & \textbf{Initial Section} & \textbf{Design Section} & \textbf{Selection Status} \\",
+        "".join(rows),
+    )
 
 
 def _shear_connector_table(input_dict, output_dict=None):

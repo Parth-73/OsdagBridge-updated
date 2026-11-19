@@ -25,10 +25,27 @@ def _tex(value):
     return "".join(escapes.get(char, char) for char in s)
 
 
-def _render_value(source_dict, key, unit=""):
+def quantity(value, unit="", *, scale=1, decimals=3, missing="Not calculated"):
+    """Format a finite quantity after an explicit source-to-display conversion."""
+    if value is None or value == "":
+        return missing
+    number = _finite_number(value)
+    if number is None:
+        return "Calculation failed"
+    text = f"{number * scale:.{decimals}f}"
+    if "." in text:
+        text = text.rstrip("0").rstrip(".")
+    return text + (" " + unit if unit else "")
+
+
+def _render_value(source_dict, key, unit="", *, missing=""):
     val = source_dict.get(key)
-    if val in ("", None):
-        return ""
+    if val is None or val == "":
+        return missing
+    if isinstance(val, (int, float)) and not isinstance(val, bool):
+        return quantity(val, unit.strip(), missing=missing)
+    if isinstance(val, str) and val.strip().lower() in {"nan", "inf", "-inf", "infinity"}:
+        return "Calculation failed"
     return _tex(val) + unit
 
 
@@ -65,7 +82,7 @@ def get_girder_entries(input_dict):
     for i in range(1, n + 1):
         entries.append(
             (
-                input_dict.get(f"{KEY_MP_GD_SELECT_GIRDER}.G{i}", ""),
+                input_dict.get(f"{KEY_MP_GD_SELECT_GIRDER}.G{i}") or f"G{i}",
                 input_dict.get(f"{KEY_MP_GD_MEMBER_ID}.G{i}.M1", ""),
             )
         )
@@ -84,13 +101,8 @@ def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
                 r'\includegraphics[width=' + width + ']{' + p + '}\n'
                 r'\caption*{' + caption + '}\n'
                 r'\end{figure}')
-    return (r'\begin{figure}[H]' + '\n'
-            r'\centering' + '\n'
-            r'\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}' + '\n'
-            r'\caption*{' + caption + '}\n'
-            r'\end{figure}')
+    return r"\par\noindent\textit{Drawing unavailable: " + caption + "}\n"
+
 
 def _fig_embed(path, caption, width=r'\textwidth', height=None):
     """Embed a real figure when path is provided (already copied); otherwise use an fbox placeholder."""
@@ -104,12 +116,7 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
                 r'\includegraphics[' + opts + ']{' + p + '}\n'
                 r'\caption*{\small ' + caption + '}\n'
                 r'\end{figure}')
-    # fbox placeholder — matches template exactly
-    return (r'\par\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{' + '\n'
-            r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}\par' + '\n')
-
-
+    return r"\par\noindent\textit{Plot unavailable: " + caption + "}\n"
 
 
 def _finite_number(value):

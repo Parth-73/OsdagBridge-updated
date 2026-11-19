@@ -3313,7 +3313,17 @@ def run_design_check(
             )
         g_lc = per_girder_per_lc[g_name]
 
+        section = g_config.section
         per_girder_results[g_name] = {
+            "section_report_values": {
+                "depth_mm": section.D, "web_mm": section.tw,
+                "top_width_mm": section.bf_top, "bottom_width_mm": section.bf_bot,
+                "top_thickness_mm": section.tf_top, "bottom_thickness_mm": section.tf_bot,
+                "area_mm2": section.A_steel, "iz_mm4": section.Iz_steel,
+                "ze_mm3": section.Ze_steel, "zp_mm3": section.Zp_steel,
+                "beff_mm": g_cap.beff_mm, "composite_iz_mm4": g_cap.I_comp_short_mm4,
+                "pna_mm": g_cap.xu_mm,
+            },
             "demand": {
                 "Mu_kNm"              : g_demand.Mu_kNm,
                 "Vu_kN"               : g_demand.Vu_kN,

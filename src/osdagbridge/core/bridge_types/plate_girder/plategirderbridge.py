@@ -70,6 +70,7 @@ from osdagbridge.core.utils.common import (
     KEY_UTIL_FATIGUE,
     KEY_UTIL_LONG_TRANS_SHEAR,
     KEY_UTIL_STRESS_LIMITATION,
+    KEY_WL_BASIC_WIND_SPEED, KEY_WL_AVG_EXPOSED_HEIGHT, KEY_WL_TERRAIN_TYPE,
     KEY_SL_IMPORTANCE_FACTOR, KEY_SL_SOIL_TYPE, KEY_SL_TIME_PERIOD,
     KEY_SL_DAMPING, KEY_SL_RESPONSE_REDUCTION,
     KEY_SL_DEAD_LOAD_MODE, KEY_SL_DEAD_LOAD_VALUE,
@@ -784,6 +785,13 @@ class PlateGirderBridge:
                 if _total is not None:
                     self.output_dict[f"{KEY_SD_DEFL_TOTAL}.{_gi}"] = round(float(_total), 3)
             
+            deflections = self._deflections_cache or {}
+            first = next(iter(deflections.values()), {})
+            self.output_dict["report_deflection_cases"] = {
+                KEY_SD_DEFL_LIVE: first.get("live_case"),
+                KEY_SD_DEFL_TOTAL: first.get("total_case"),
+            }
+
             # Stage 8: 3D CAD & Drawing Generation
             self._run_stage("8", self._stage_cad_generation)
 
@@ -801,24 +809,11 @@ class PlateGirderBridge:
         # Release all heavy analysis memory (unlock / app-close entry point).
         self.memory.release()
 
-    def _export_cad_figures(self, cad_generator) -> dict:
-        """
-        Export 4 CAD views to the fixed internal Images folder.
-        Returns { ReportFigures_attr: absolute_path } for each view.
-        Returns {} on any failure. Never raises.
-        """
+    def _export_cad_figures(self, cad_generator, figures_dir) -> dict:
+        """Export existing CAD views to the caller's temporary directory."""
         import os
         import logging
         _log = logging.getLogger(__name__)
-
-        # ── Resolve save path: core/data/ResourceFiles/Images/ ───────
-        resource_files_dir = os.path.normpath(os.path.join(
-            os.path.dirname(os.path.abspath(__file__)),
-            '..', '..', '..', 'core', 'data', 'ResourceFiles'
-        ))
-        figures_dir = os.path.join(resource_files_dir, 'Images')
-        if not os.path.exists(figures_dir):
-            os.makedirs(figures_dir)
 
         if not cad_generator:
             return {}
@@ -986,8 +981,19 @@ class PlateGirderBridge:
 
         # Collect figure bytes into payload.figure_data — no disk writes here
         figure_data = {}
-        if isinstance(cad_generator, dict):
-            figure_data.update(cad_generator.get('figure_data', {}))
+        if request.options.include_figures:
+            if isinstance(cad_generator, dict):
+                figure_data.update(cad_generator.get("figure_data", {}))
+            elif cad_generator is not None:
+                from tempfile import TemporaryDirectory
+
+                with TemporaryDirectory(prefix="osdag-cad-") as directory:
+                    paths = self._export_cad_figures(cad_generator, directory)
+                    for key, path in paths.items():
+                        try:
+                            figure_data[key] = Path(path).read_bytes()
+                        except OSError:
+                            bridge_logger.info(f"CAD drawing unavailable: {key}")
 
         payload.figure_data = figure_data  # handed off; generate_report clears it after writing
 
@@ -1378,13 +1384,19 @@ class PlateGirderBridge:
         inp = self.input_dict
 
         # ── Wind speed / terrain ─────────────────────────────────────────
-        basic_wind_speed = float(ai.get("basic_wind_speed") or 33.0)
+        def wind_input(key, legacy):
+            supplied = ai.get(key)
+            return supplied if supplied not in (None, "") else ai.get(legacy)
+
+        speed = wind_input(KEY_WL_BASIC_WIND_SPEED, "basic_wind_speed")
+        height = wind_input(KEY_WL_AVG_EXPOSED_HEIGHT, "avg_exposed_height")
+        basic_wind_speed = float(speed) if speed not in (None, "") else 33.0
         if basic_wind_speed == 0.0:
             bridge_logger.info("Wind load absent (speed=0); skipping.")
             return
 
-        height_for_pz = float(ai.get("avg_exposed_height") or 10.0)
-        terrain_raw   = str(ai.get("terrain_type") or "Plain Terrain")
+        height_for_pz = float(height) if height not in (None, "") else 10.0
+        terrain_raw   = str(wind_input(KEY_WL_TERRAIN_TYPE, "terrain_type") or "Plain Terrain")
         terrain       = "plain" if "plain" in terrain_raw.lower() else "obstructed"
 
         # ── Exposed height components ────────────────────────────────────
@@ -1414,6 +1426,11 @@ class PlateGirderBridge:
             d_depth=d_depth,
             partial_safety_factor=1.0,
         )
+        report_loads = self.output_dict.setdefault("environmental_load_results", {})
+        report_loads.update(self.grillage_model.wind_report_values)
+        report_loads["wind_used_default"] = speed in (None, "")
+        report_loads["wind_height_default"] = height in (None, "")
+
 
     # ============================================================
     #   Temperature Load Analysis  IRC:6-2017 Cl.215
@@ -1973,6 +1990,12 @@ class PlateGirderBridge:
             live_load_kN=live_load_kN,
             partial_safety_factor=1.5,  # IRC:6-2017 Table B.2 seismic ULS
         )
+        report_loads = self.output_dict.setdefault("environmental_load_results", {})
+        report_loads.update(self.grillage_model.seismic_report_values)
+        report_loads["seismic_used_default"] = not (
+            isinstance(location, dict) and (location.get("weather_data") or {}).get("z_value") is not None
+        )
+
 
     def vehicle_lane_coordinates(self) -> list:
         """
@@ -2293,7 +2316,8 @@ class PlateGirderBridge:
 
     def _run_dcr_checks(self, dataset) -> None:
         """Run structural capacity checks and push DCR percentages to the output dock."""
-        results = PlateGirderAnalysisResults(dataset=dataset, bridge=self.grillage_model)
+        results = PlateGirderAnalysisResults(dataset=dataset, bridge=self.grillage_model,
+                                              edge_dist=self.grillage_model.edge_dist)
         _, engine, design_results = run_design_check(
             plate_girder_bridge=self,
             analysis_results=results,
@@ -3283,6 +3307,7 @@ class PlateGirderBridge:
         return PlateGirderAnalysisResults(
             dataset=results,
             bridge=self.grillage_model,
+            edge_dist=self.get_edge_dist(),
         )
 
     def compute_load_effects_cache(self) -> None:

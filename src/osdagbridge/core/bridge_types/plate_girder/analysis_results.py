@@ -458,6 +458,8 @@ class PlateGirderAnalysisResults:
                     name = "EB1"
                 elif i == num_pairs:
                     name = "EB2"
+                else:
+                    name = f"G{i - 1}"
 
             path = self.bfs_shortest_path(adj, s, e)
             path_elements, element_map = self.get_elements_along_path(path, elements)

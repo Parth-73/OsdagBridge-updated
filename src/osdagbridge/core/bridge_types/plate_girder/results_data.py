@@ -10,6 +10,7 @@ bridge-wrapper dependency.
 
 from __future__ import annotations
 import json
+import math
 from collections import OrderedDict
 from collections.abc import Mapping
 from pathlib import Path
@@ -814,7 +815,8 @@ def build_deflections_cache(result_handler) -> dict:
                 if node not in node_set:
                     continue
                 v = float(disp_da.sel(Loadcase=lc_name, Node=node, Component="y")) * 1000.0
-                vals.append(v)
+                if math.isfinite(v):
+                    vals.append(v)
             return round(max(abs(v) for v in vals), 3) if vals else None
         except Exception:
             return None
@@ -828,6 +830,8 @@ def build_deflections_cache(result_handler) -> dict:
         gi += 1
         nodes = gdata.get("path", [])
         cache[girder_label] = {
+            "live_case": ll_case,
+            "total_case": dl_ll_case,
             "live_mm":  _max_defl_mm(ll_case,    nodes),
             "total_mm": _max_defl_mm(dl_ll_case, nodes),
         }

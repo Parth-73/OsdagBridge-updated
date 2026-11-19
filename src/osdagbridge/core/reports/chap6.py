@@ -1,47 +1,20 @@
 def ch6_drawings(fig_paths):
-    """Chapter 6 – Drawings and Visualizations.
-
-    Layout: section heading → figure → small numbered label below.
-    No subsection headers. 6.3 and 6.4 are headings only (no figures).
-
-    Figure numbering (auto-incremented by LaTeX):
-      6.1  Overall 3D Bridge Superstructure
-      6.2  Typical Cross Section
-      6.3  Top View
-      6.4  3D View of Plate Girders
-      6.5  Cross Section of Plate Girder
-      6.6  Side View of Girder
-      6.7  Cross Bracing Layout
-      6.8  Cross Bracing -- Bracing Section
-      6.9  Cross Bracing -- Top Chord Section
-      6.10 Cross Bracing -- Bottom Chord Section
-      6.11 End Diaphragm Layout
-      6.12 End Diaphragm -- Bracing Section
-      6.13 End Diaphragm -- Top Chord Section
-      6.14 End Diaphragm -- Bottom Chord Section
-    """
+    """Render captured engineering drawings and mark unavailable views."""
 
     def _sec_fig(path, title, label=None):
         """Figure block: image first, numbered below. Placeholder if no path."""
-        label_tex = (r'\label{' + label + '}\n') if label else ''
+        label_tex = (r'\label{' + label + '}' + "\n") if label else ''
         if path:
             p = path.replace('\\', '/')
             return (r'\begin{figure}[H]' + '\n'
                     r'\centering' + '\n'
                     r'\vspace{4pt}' + '\n'
-                    r'\includegraphics[width=0.85\textwidth]{' + p + '}\n'
+                    r'\includegraphics[width=0.85\textwidth]{' + p + '}' + '\n'
                     r'\caption{' + title + '}\n'
                     + label_tex
                     + r'\end{figure}' + '\n'
                     )
-        return (r'\begin{figure}[H]' + '\n'
-                r'\centering' + '\n'
-                r'\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{' + '\n'
-                r'\textit{[ PLACEHOLDER: ' + ' ' + title + r' ]}' + '\n'
-                r'}}' + '\n'
-                r'\caption{' + title + '}\n'
-                + label_tex
-                + r'\end{figure}' + '\n')
+        return r"\par\noindent\textit{Drawing unavailable: " + title + "}\n"
 
     sup3d  = _sec_fig(fig_paths.get('final_geometry'),   'Overall 3D Bridge Superstructure',   'fig:bridge-3d')
     cs     = _sec_fig(fig_paths.get('cross_section'),     'Typical Cross Section',              'fig:cross-section')
@@ -58,7 +31,8 @@ def ch6_drawings(fig_paths):
             p = path.replace('\\', '/')
             body = r'\includegraphics[width=\linewidth]{' + p + '}'
         else:
-            body = r'\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{\centering\textit{[ ' + title + r' ]}}}'
+            return (r'\begin{minipage}[t]{0.31\textwidth}\centering\textit{Drawing unavailable: '
+                    + title + r'}\end{minipage}')
         return (r'\begin{minipage}[t]{0.31\textwidth}' + '\n'
                 r'\centering' + '\n'
                 + body + '\n'
@@ -126,7 +100,7 @@ def ch6_drawings(fig_paths):
 \chapter{Drawings and Visualizations}
 \label{ch:drawings}
 
-This section presents CAD-generated views of the designed bridge and its components. All views are generated automatically by OsdagBridge using pythonOCC.
+Captured CAD views are shown where available. Unavailable drawings are identified in the corresponding section.
 
 \section{Bridge Configuration and Layout}
 \label{sec:bridge-layout}

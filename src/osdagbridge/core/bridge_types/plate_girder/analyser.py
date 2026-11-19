@@ -1298,6 +1298,12 @@ class BridgeGrillageModel:
         # double-counting.
         self.seismic_load_case = combo_cases[2]
 
+        self.seismic_report_values = {
+            "seismic_factor_used": z_value, "seismic_Ah": Ah, "seismic_Av": Av,
+            "seismic_force_longitudinal_kN": Feq_X_kN,
+            "seismic_force_transverse_kN": Feq_Z_kN,
+            "seismic_force_vertical_kN": Feq_Y_kN,
+        }
         return {
             "EQ_X": EQ_X, "EQ_Z": EQ_Z, "EQ_Y": EQ_Y,
             "EQ_a": combo_cases[0], "EQ_b": combo_cases[1], "EQ_c": combo_cases[2],
@@ -1507,6 +1513,14 @@ class BridgeGrillageModel:
         model.add_load_case(WL, load_factor=partial_safety_factor)
         self.wind_load_case = WL
 
+        self.wind_report_values = {
+            "wind_speed_used": basic_wind_speed, "wind_terrain_used": terrain,
+            "wind_height_used": height_for_pz, "wind_pressure": Pz,
+            "wind_hourly_speed": IRC6_2017.table_12(height_for_pz, terrain, basic_wind_speed)["Vz"],
+            "wind_force_transverse_kN": FT_total / 1000,
+            "wind_force_longitudinal_kN": FL_per_m2 * deck_area / 1000,
+            "wind_force_vertical_kN": FV_per_m2 * deck_area / 1000,
+        }
         return {"WL_T": WL_T, "WL_L": WL_L, "WL_V": WL_V, "WL": WL}
 
     # ============================================================

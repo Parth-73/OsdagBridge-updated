@@ -164,6 +164,10 @@ def test_generate_report_compiles(tmp_path, long_report):
         pages = [page for page in extracted.split("\f") if page.strip()]
         assert [int(re.search(r"Page (\d+) of", page)[1]) for page in pages] == list(range(1, len(pages) + 1))
         assert "Vehicle Live Loads" in extracted and "Footpath Live Loads" in extracted
+        assert "Critical Design Failures and Warnings" in extracted
+        assert not re.search(r"\b(?:nan|inf)\b|\\(?:begin|textbf|placeholder)", extracted, re.I)
+        if long_report:
+            assert "FAIL" in extracted
     if long_report and shutil.which("pdfimages"):
         images = subprocess.check_output(["pdfimages", "-list", report.pdf_path], text=True)
         assert sum(line.split()[2] == "image" for line in images.splitlines()[2:]) >= 4
@@ -178,14 +182,14 @@ def test_diaphragm_tonnage_and_unavailable_components():
 
     inputs = {KEY_SPAN: 20, KEY_TS_NO_OF_GIRDERS: 2}
     results = {"end_diaphragm_takeoff": [{"mass_kg_per_m": 10, "length_m": 2.5, "count": 4}],
-               "design_results": {"per_girder": {"G1": {"checks": [{"dcr": 1.3, "name": "Fatigue"}]}}}}
+               "design_results": {"per_girder": {"G1": {"checks": [{"check_id": 8, "dcr": 1.3, "name": "Fatigue"}]}}}}
     quantities = calculate_material_quantities(inputs, results)
     assert quantities["end_diaphragm_wt_total"] == "0.100"
     assert quantities["end_diaphragm_qty"] == "4"
     assert "End Diaphragms" in ch7_quantities(quantities)
     source = executive_summary(inputs, results, {})
-    assert r"\textbf{Girder}: Fail (Fatigue)" in source
-    assert r"\textbf{End diaphragm}: Unavailable" in source
+    assert "Plate Girder & G1" in source and "1.30 & FAIL" in source
+    assert "End Diaphragm & End-diaphragm design results unavailable & --- & NOT EVALUATED" in source
 
 
 def test_end_diaphragm_chart_uses_its_own_capacity_check(tmp_path, monkeypatch):

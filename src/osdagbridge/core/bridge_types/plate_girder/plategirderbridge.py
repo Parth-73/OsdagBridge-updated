@@ -2671,6 +2671,7 @@ class PlateGirderBridge:
         # 5. Process design results and queries
         forces_dict = {"pairs": {}}
         pair_designs = {}
+        takeoff = []
         for pair in pairs:
             pair_designs[pair] = {}
 
@@ -3006,6 +3007,23 @@ class PlateGirderBridge:
                     self.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUZ, pair_id)] = z_pz / 1000.0
                     self.output_dict[make_pair_key(KEY_TD_ED_PROP_ZUV, pair_id)] = z_py / 1000.0
 
+            # Each girder bay has the same diaphragm configuration at both supports.
+            if ed_type == "Cross Bracing":
+                members = [(KEY_TD_ED_PROP_M, L_d, 4)]
+                if top_chord_enabled:
+                    members.append((KEY_TD_ED_TOP_CHORD_PROP_M, s, 2))
+                if bottom_chord_enabled:
+                    members.append((KEY_TD_ED_BOTTOM_CHORD_PROP_M, s, 2))
+            else:
+                members = [(KEY_TD_ED_PROP_M, s, 2)]
+            for mass_key, length, count in members:
+                takeoff.append({
+                    "length_m": length,
+                    "count": count,
+                    "mass_kg_per_m": self.output_dict.get(make_pair_key(mass_key, pair_id)),
+                })
+
+        self.output_dict["end_diaphragm_takeoff"] = takeoff
         if forces_dict.get("pairs"):
             self._print_enddiaphragm_design_results(forces_dict, pair_designs)
         

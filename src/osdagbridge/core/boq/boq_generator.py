@@ -363,4 +363,19 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
     except Exception as exc:
         logger.warning(f"Error calculating material quantities: {exc}")
 
+    diaphragm_members = outputs.get("end_diaphragm_takeoff") or []
+    if diaphragm_members:
+        try:
+            masses = [
+                (float(member["mass_kg_per_m"]), float(member["length_m"]), int(member["count"]))
+                for member in diaphragm_members
+            ]
+            if all(math.isfinite(mass) and math.isfinite(length)
+                   and mass > 0 and length > 0 and count > 0
+                   for mass, length, count in masses):
+                quantities["end_diaphragm_qty"] = str(sum(count for _, _, count in masses))
+                quantities["end_diaphragm_wt_total"] = f"{sum(mass * length * count for mass, length, count in masses) / 1000:.3f}"
+        except (KeyError, TypeError, ValueError, OverflowError):
+            logger.debug("End diaphragm take-off is missing member geometry or section masses.")
+
     return quantities

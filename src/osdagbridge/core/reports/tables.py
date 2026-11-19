@@ -15,3 +15,15 @@ def completed_rows(body):
     if not body:
         return ""
     return body.removesuffix(r"\hline") + r"\noalign{\nobreak}\specialrule{\arrayrulewidth}{0pt}{0pt}" + "\n"
+
+
+
+def load_longtable(caption, columns, heading, rows):
+    """Build a PyLaTeX load table with first-page and continuation headings."""
+    from pylatex import LongTable, NoEscape
+
+    table = LongTable(NoEscape(columns))
+    table.append(NoEscape(r"\caption{\textbf{" + caption + r"}}\\" + "\n"))
+    table.append(NoEscape(repeated_header(heading, footer=True)))
+    table.append(NoEscape(rows.rstrip().removesuffix(r"\hline")))
+    return table.dumps()

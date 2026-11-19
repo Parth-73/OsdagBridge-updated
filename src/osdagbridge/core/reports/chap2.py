@@ -296,7 +296,7 @@ def _girder_tables(input_dict, n_girders):
     return (r"""
 \newpage
 
-\vspace{0.4em}
+\reportSmallGap
 \noindent
             
 \vspace{4pt}
@@ -368,10 +368,9 @@ def _bracing_tables(input_dict, n_girders):
 \newpage
 
 \begingroup
-\vspace{0.4em}
+\reportSmallGap
 
-\setlength\LTleft{0pt}
-\setlength\LTright{\fill}
+\reportLeftTable
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|C{1.8cm}|}
 \caption{\textbf{Member Properties: Cross Bracing Details}}\\
@@ -379,7 +378,7 @@ def _bracing_tables(input_dict, n_girders):
 + cb_rows
 + r"""\end{longtable}
 
-\vspace{0.4em}
+\reportSmallGap
 \noindent
 
 \begin{longtable}{|L{2.2cm}|L{2.2cm}|L{3.0cm}|L{2.5cm}|}
@@ -399,7 +398,7 @@ def _shear_connector_table(input_dict, output_dict=None):
 
 \vspace{2.2em}
 
-\vspace{0.4em}
+\reportSmallGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Shear Connector Details}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\") + r"""\textnormal{Stud Diameter (mm)} & """ + (_render_value(od, KEY_SD_SHEAR_DIAMETER, ' mm')) + r""" \\[6pt]
@@ -424,7 +423,7 @@ def _safety_factors_table(input_dict):
 \vspace{0.3em}
 \noindent\textit{Note: All values are per IRC 22 Table 1 unless user-modified.}
 
-\vspace{0.4em}
+\reportSmallGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Partial Safety Factors}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\") + r"""\textnormal{$\gamma_{M0}$ (Yielding / Buckling)} & """ + (_render_value(input_dict, KEY_DO_GAMMA_M0)) + r""" \\[6pt]

@@ -88,6 +88,12 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \numberwithin{table}{chapter}
 \numberwithin{figure}{chapter}
 % Table layout and spacing: consistent padding, row height, and longtable pre/post skips
+\newcommand{\reportTableGap}{\vspace{1em}}
+\newcommand{\reportSmallGap}{\vspace{0.4em}}
+\newcommand{\reportDenseTable}{%
+  \footnotesize\setlength{\tabcolsep}{3pt}\renewcommand{\arraystretch}{1.25}}
+\newcommand{\reportCompactTable}{\setlength{\tabcolsep}{3.5pt}}
+\newcommand{\reportLeftTable}{\setlength{\LTleft}{0pt}\setlength{\LTright}{\fill}}
 \setlength{\tabcolsep}{4pt}
 \renewcommand{\arraystretch}{1.12}
 \setlength{\LTpre}{4pt}

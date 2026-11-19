@@ -8,6 +8,7 @@ _MATERIAL_CHARTS = (
         ("Cross bracing – top chord", "bracing_top_wt_total"),
         ("Cross bracing – bottom chord", "bracing_bot_wt_total"),
         ("Cross bracing – diagonal chord", "bracing_diag_wt_total"),
+        ("End diaphragms", "end_diaphragm_wt_total"),
         ("Shear stud connectors", "shear_studs_wt_total"),
     )),
     ("concrete.png", "Concrete", "Total volume (m³)", (
@@ -38,7 +39,7 @@ def ch7_quantities(input_dict, *, image_dir=None):
 \noindent\textbf{Table 7.1  Bill of Materials (Steel, Concrete, and Reinforcement Quantities)}
 
 \begingroup
-\setlength{\tabcolsep}{3.5pt}
+\reportCompactTable
 \begin{longtable}{|C{1.0cm}|L{3.8cm}|C{2.6cm}|C{1.9cm}|C{1.8cm}|C{1.8cm}|C{1.8cm}|}
 """ + repeated_header(r"\textbf{S.N.} & \textbf{Item Description} & \textbf{Volume} & \textbf{Quantity} & \textbf{Total Volume} & \textbf{\shortstack{Weight\\(MT)}} & \textbf{\shortstack{Total\\weight\\(MT)}} \\") + r"""1 & Structural Steel (IS 2062) for Girders & """ + str(input_dict.get("steel_girders_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_qty", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("steel_girders_wt_total", "N.A.")) + r""" \\
 \hline
@@ -55,6 +56,8 @@ def ch7_quantities(input_dict, *, image_dir=None):
 5 & Shear Stud Connectors & """ + str(input_dict.get("shear_studs_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_qty", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("shear_studs_wt_total", "N.A.")) + r""" \\
 \hline
 6 & Crash Barrier & """ + str(input_dict.get("crash_barrier_vol_formula", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_qty", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_vol_total", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_single", "N.A.")) + r""" & """ + str(input_dict.get("crash_barrier_wt_total", "N.A.")) + r""" \\
+\hline
+7 & End Diaphragms & --- & """ + str(input_dict.get("end_diaphragm_qty", "N.A.")) + r""" & --- & --- & """ + str(input_dict.get("end_diaphragm_wt_total", "N.A.")) + r""" \\
 \hline
 \end{longtable}
 \endgroup

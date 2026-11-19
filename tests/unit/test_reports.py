@@ -59,9 +59,11 @@ def test_vehicle_selections_and_automatic_footpath():
     assert "1.5 & m" in footpath
 
 
-def test_braking_helper_missing_value_does_not_break_report():
+def test_two_lane_braking_has_a_value_and_unit():
     source = ch3_loads({KEY_LL_IRC_CLASS_A: True, KEY_WC_LD_LANE_TABLE_COUNT: 2})
-    assert "Lane-based braking load (IRC 6 Cl. 211.2): unavailable." in source
+    expected = 0.20 * sum(IRC6_2017.cl_204_1_ClassA_vehicle()["wheel_loads"]) / 1000
+    assert f"Lane-based braking load (IRC 6 Cl. 211.2) & {expected:.2f} & kN" in source
+    assert "Centrifugal force & Unavailable (no horizontal curvature data) & kN" in source
 
 
 @pytest.mark.parametrize("configuration,value,expected", [
@@ -78,18 +80,18 @@ def test_optional_and_custom_footpath(configuration, value, expected):
 
 def test_utilization_chart_threshold_and_files(tmp_path, monkeypatch):
     observed = {}
-    barh, axvline = Axes.barh, Axes.axvline
+    bar, axhline = Axes.bar, Axes.axhline
 
     def bars(self, labels, values, **kwargs):
         observed["bars"] = (labels, values, kwargs["color"])
-        return barh(self, labels, values, **kwargs)
+        return bar(self, labels, values, **kwargs)
 
     def line(self, x, **kwargs):
         observed["line"] = (x, kwargs["linestyle"])
-        return axvline(self, x, **kwargs)
+        return axhline(self, x, **kwargs)
 
-    monkeypatch.setattr(Axes, "barh", bars)
-    monkeypatch.setattr(Axes, "axvline", line)
+    monkeypatch.setattr(Axes, "bar", bars)
+    monkeypatch.setattr(Axes, "axhline", line)
     paths = generate_utilization_charts([("Zero", 0), ("Limit", 1.0), ("Fail", 1.001),
                                         ("Unknown", None), ("Invalid", float("nan"))], tmp_path)
     labels, values, colors = observed["bars"]
@@ -168,3 +170,37 @@ def test_generate_report_compiles(tmp_path, long_report):
         source = Path(report.tex_path).read_text()
         for name in ("utilization_1", "concrete", "reinforcement"):
             assert f"images/{name}.png" in source
+
+
+def test_diaphragm_tonnage_and_unavailable_components():
+    from osdagbridge.core.boq.boq_generator import calculate_material_quantities
+    from osdagbridge.core.reports.executive_summary import executive_summary
+
+    inputs = {KEY_SPAN: 20, KEY_TS_NO_OF_GIRDERS: 2}
+    results = {"end_diaphragm_takeoff": [{"mass_kg_per_m": 10, "length_m": 2.5, "count": 4}],
+               "design_results": {"per_girder": {"G1": {"checks": [{"dcr": 1.3, "name": "Fatigue"}]}}}}
+    quantities = calculate_material_quantities(inputs, results)
+    assert quantities["end_diaphragm_wt_total"] == "0.100"
+    assert quantities["end_diaphragm_qty"] == "4"
+    assert "End Diaphragms" in ch7_quantities(quantities)
+    source = executive_summary(inputs, results, {})
+    assert r"\textbf{Girder}: Fail (Fatigue)" in source
+    assert r"\textbf{End diaphragm}: Unavailable" in source
+
+
+def test_end_diaphragm_chart_uses_its_own_capacity_check(tmp_path, monkeypatch):
+    values = {}
+    def capture(rows, directory):
+        values.update(rows)
+        return []
+    monkeypatch.setattr("osdagbridge.core.reports.chap5.generate_utilization_charts", capture)
+    outputs = {
+        "end_diaphragm_design_results": {"G1-G2": {"diagonal": {"tension": {
+            "Member.efficiency": 0.8, "Member.tension_capacity": 100,
+        }}}},
+        "end_diaphragm_forces_dict": {"pairs": {"G1-G2": {"diag_tension_kN": 80}}},
+    }
+    bridge = ReportDataBridge(outputs, {KEY_TS_NO_OF_GIRDERS: 2}, None)
+    report = ch5_design_checks([], bridge, image_dir=tmp_path)
+    assert values["End Diaphragm – Tension"] == 0.8
+    assert "End Diaphragm Capacity Checks" in report

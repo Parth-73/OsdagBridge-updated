@@ -8,3 +8,4 @@ pydantic
 xarray
 ifcopenshell
 openpyxl
+PyLaTeX>=1.4.2

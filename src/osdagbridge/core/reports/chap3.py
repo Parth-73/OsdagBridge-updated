@@ -1,4 +1,4 @@
-from .tables import repeated_header
+from .tables import load_longtable, repeated_header
 
 # =============================================================================
 # Chapter 3: Loads and Load Combinations
@@ -15,6 +15,7 @@ from osdagbridge.core.utils.common import (
     KEY_BL_IRC_CLASS_FATIGUE,
     KEY_BL_IRC_CLASS_SV,
     KEY_CB_LOAD,
+    KEY_CARRIAGEWAY_WIDTH,
     KEY_FOOTPATH,
     KEY_LL_ECCENTRICITY,
     KEY_TS_FOOTPATH_WIDTH,
@@ -126,30 +127,28 @@ def _vehicle_rows(inputs, code):
     if not rows:
         rows.append(("No vehicle classes selected", "---", "---"))
 
-    # The available braking force is a lane-based value, not a per-vehicle result.
+    # Use the selected design-lane count, with IRC Table 6 as the fallback.
     lanes = _finite_number(inputs.get(KEY_WC_LD_LANE_TABLE_COUNT))
-    notes = []
+    width = _finite_number(inputs.get(KEY_CARRIAGEWAY_WIDTH))
+    if lanes is None and width is not None and width > 0:
+        lanes = float(code.table_6(width))
+
+    parameters = []
     if has_heavy:
-        if span is not None and span > 0:
-            factor = 1.0 + code.cl_208_3_impact_factor(span)
-            notes.append(f"Class AA/70R impact factor (IRC 6 Cl. 208.3): {factor:.3f}.")
-        else:
-            notes.append("Class AA/70R impact factor: unavailable.")
-    if any(status in {"Yes", "---"} for status in braking) and lanes and lanes.is_integer() and lanes > 0:
-        try:
-            force_t = _finite_number(code.cl_211_2_braking_force(int(lanes)))
-        except UnboundLocalError:
-            # The existing IRC helper does not initialize its additional-lane
-            # term for a one- or two-lane bridge.
-            force_t = None
-        if force_t is None:
-            notes.append("Lane-based braking load (IRC 6 Cl. 211.2): unavailable.")
-        else:
-            notes.append(f"Lane-based braking load (IRC 6 Cl. 211.2): {force_t * 9.81:.2f} kN ({force_t:.2f} tonnes).")
-        eccentricity = _render_value(inputs, KEY_LL_ECCENTRICITY, " m")
-        if eccentricity:
-            notes.append("Braking load eccentricity: " + eccentricity + ".")
-    return _load_rows(rows), " ".join(notes)
+        value = f"{1.0 + code.cl_208_3_impact_factor(span):.3f}" if span and span > 0 else "Unavailable"
+        parameters.append(("Class AA/70R impact factor (IRC 6 Cl. 208.3)", value, "---"))
+    can_apply_braking = any(status in {"Yes", "---"} for status in braking)
+    force = "Not selected" if not can_apply_braking else "Unavailable"
+    if can_apply_braking and lanes and lanes.is_integer() and lanes > 0:
+        force = f"{code.cl_211_2_braking_force(int(lanes)) * 9.81:.2f}"
+    parameters.append(("Lane-based braking load (IRC 6 Cl. 211.2)", force, "kN"))
+    eccentricity = _render_value(inputs, KEY_LL_ECCENTRICITY)
+    if eccentricity and can_apply_braking:
+        parameters.append(("Braking load eccentricity", eccentricity, "m"))
+
+    # Current bridge geometry has no horizontal curve input or force output.
+    parameters.append(("Centrifugal force", "Unavailable (no horizontal curvature data)", "kN"))
+    return _load_rows(rows), _load_rows(parameters)
 
 
 def _footpath_rows(inputs, code):
@@ -191,8 +190,18 @@ def _footpath_rows(inputs, code):
 def ch3_loads(input_dict):
     from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 
-    vehicle_rows, vehicle_notes = _vehicle_rows(input_dict, IRC6_2017)
+    vehicle_rows, vehicle_parameters = _vehicle_rows(input_dict, IRC6_2017)
     footpath_rows = _footpath_rows(input_dict, IRC6_2017)
+
+    vehicle_table = load_longtable(
+        "Vehicle Live Loads (LL)", "|L{6.5cm}|C{4.5cm}|C{4.5cm}|",
+        r"\textbf{Selected vehicle class} & \textbf{Impact factor (IRC 6)} & \textbf{Braking selected} \\",
+        vehicle_rows,
+    )
+    load_columns = "|L{6.5cm}|L{6.5cm}|C{2.5cm}|"
+    load_heading = r"\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\"
+    vehicle_parameters_table = load_longtable("Vehicle Live Load Parameters", load_columns, load_heading, vehicle_parameters)
+    footpath_table = load_longtable("Footpath Live Loads", load_columns, load_heading, footpath_rows)
 
     # Vz / Pz — prefer stored computed values; fall back to IRC6 Table 12
     vz_val = input_dict.get(KEY_WL_HOURLY_MEAN_WIND)
@@ -323,7 +332,7 @@ def ch3_loads(input_dict):
 
 This section summarizes all loads applied to the bridge and the load combinations considered for analysis and design.
 
-\vspace{1em}
+\reportTableGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load -- Self Weight}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + r"""\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
@@ -333,7 +342,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
 \end{longtable}
 
-\vspace{1em}
+\reportTableGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load for Surfacing (DW)}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + r"""\textnormal{Wearing Course Load} & """ + (_render_value(input_dict, KEY_WC_MATERIAL)) + r""" x """ + (_render_value(input_dict, KEY_WC_THICKNESS)) + r""" \\[6pt]
@@ -343,17 +352,8 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Railing Load} & """ + (_render_value(input_dict, KEY_RL_LOAD_VALUE)) + r""" kN/m\sdstar{} \\[6pt]
 \end{longtable}
 
-\vspace{1em}
-\begin{longtable}{|L{6.5cm}|C{4.5cm}|C{4.5cm}|}
-\caption{\textbf{Vehicle Live Loads (LL)}}\\
-""" + repeated_header(r"\textbf{Selected vehicle class} & \textbf{Impact factor (IRC 6)} & \textbf{Braking selected} \\", footer=True) + vehicle_rows.rstrip().removesuffix(r"\hline") + r"""
-\end{longtable}
-\noindent """ + vehicle_notes + r"""
-
-\begin{longtable}{|L{6.5cm}|L{6.5cm}|C{2.5cm}|}
-\caption{\textbf{Footpath Live Loads}}\\
-""" + repeated_header(r"\textbf{Parameter} & \textbf{Value} & \textbf{Unit} \\", footer=True) + footpath_rows.rstrip().removesuffix(r"\hline") + r"""
-\end{longtable}
+\reportTableGap
+""" + vehicle_table + "\n" + vehicle_parameters_table + "\n" + footpath_table + r"""
 
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Wind Load (WL) --- per IRC 6}}\\
@@ -374,7 +374,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Vertical Wind Force} & """ + (_render_value(input_dict, KEY_WL_VERTICAL_WIND_FORCE, ' kN')) + r""" \\[6pt]
 \end{longtable}
 
-\vspace{1em}
+\reportTableGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Earthquake Load (EL) --- per IRC 6}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + r"""\textnormal{Seismic Zone} & """ + (_render_value(input_dict,'seismic_zone')) + r""" [from Project Location] \\[6pt]
@@ -396,7 +396,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Horizontal Seismic Force (transverse)} & """ + '' + r""" kN \\[6pt]
 \end{longtable}
 
-\vspace{1em}
+\reportTableGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Temperature Load (TL) --- per IRC 6}}\\
 """ + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + r"""\textnormal{Maximum Shade Temperature} & """ + (_render_value(input_dict,'shade_temp_max')) + r""" $^\circ$C \\[6pt]
@@ -408,7 +408,7 @@ This section summarizes all loads applied to the bridge and the load combination
 \textnormal{Temperature Rise / Fall for Design} & +""" + (_render_value(input_dict, KEY_TL_TEMP_RISE)) + r""" $^\circ$C / \textminus{}""" + (_render_value(input_dict, KEY_TL_TEMP_FALL)) + r""" $^\circ$C \\[6pt]
 \end{longtable}
 
-\vspace{1em}
+\reportTableGap
 \begin{longtable}{|C{4.0cm}|p{11.5cm}|}
 \caption{\textbf{Load Combinations}}\\
 """ + repeated_header(r"\textbf{Combination ID} & \textbf{Load Cases} \\[6pt]", footer=True) + lc_rows_str.rstrip().removesuffix(r"\hline") + r"""

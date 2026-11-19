@@ -2,7 +2,7 @@
 # EXECUTIVE SUMMARY
 # ═══════════════════════════════════════════════════════════════════════════════
 
-from osdagbridge.core.reports.report_utils import _fig_or_placeholder, _render_value, _tex, get_girder_entries
+from osdagbridge.core.reports.report_utils import _finite_number, _fig_or_placeholder, _render_value, _tex, get_girder_entries
 from osdagbridge.core.utils.common import (
     KEY_CARRIAGEWAY_WIDTH,
     KEY_SD_SECTION_DESIGNATION,
@@ -84,17 +84,10 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
         if str(g).startswith("EB"):     # skip edge-beam pseudo girders
             continue
         for chk in (gd.get("checks") or []):
-            try:
-                _val = chk.get("dcr")
-                if _val is None:
-                    dcr = None
-                else:
-                    dcr = float(_val)
-            except (TypeError, ValueError):
-                dcr = None
-            name = str(chk.get("name", "")).strip()
-            is_fail = ("FAIL" in str(chk.get("status", "")).upper()) or (dcr is not None and dcr > 1.0)
-            if is_fail and name and name not in failing:
+            dcr = _finite_number(chk.get("dcr"))
+            name = str(chk.get("name") or "Girder check").strip() or "Girder check"
+            is_fail = "FAIL" in str(chk.get("status", "")).upper() or (dcr is not None and dcr > 1.0)
+            if is_fail and name not in failing:
                 failing.append(name)
             if dcr is not None:
                 if gov_dcr is None or dcr > gov_dcr:
@@ -102,10 +95,10 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
                 if girder_max_ur is None or dcr > girder_max_ur:
                     girder_max_ur = dcr
 
-    if not per_girder:
-        overall_design_status = ""
-    elif failing:
+    if failing:
         overall_design_status = "Fail (" + ", ".join(failing) + ")"
+    elif girder_max_ur is None:
+        overall_design_status = "Unavailable"
     else:
         overall_design_status = "Pass"
 
@@ -121,6 +114,26 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
         m = _max_member_efficiency(results)
         if m is not None:
             component_urs.append((m, label))
+    component_status = []
+    by_component = {label: value for value, label in component_urs}
+    for label in ("Girder", "Deck slab", "Cross bracing", "End diaphragm"):
+        ur = by_component.get(label)
+        if label == "Girder":
+            status = overall_design_status
+        else:
+            status = "Unavailable" if ur is None else ("Fail" if ur > 1.0 else "Pass")
+        component_status.append(r"\textbf{" + label + "}: " + _tex(status))
+    failing_components = [label for ur, label in component_urs if label != "Girder" and ur > 1.0]
+    if failing_components:
+        extra = ", ".join(failing_components)
+        if failing:
+            overall_design_status = "Fail (" + ", ".join(failing) + "; " + extra + ")"
+        else:
+            overall_design_status = "Fail (" + extra + ")"
+    elif not failing and len(component_urs) != 4:
+        overall_design_status = "Incomplete (some design results unavailable)"
+    outcomes = (r" \\" + "\n").join(component_status)
+
     if component_urs:
         max_ur, max_label = max(component_urs, key=lambda t: t[0])
         overall_utilization_ratio = f"{max_ur:.2f} ({max_label})"
@@ -161,7 +174,7 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     urs = f"Utilization Ratio & {ur_cells} \\\\"
 
     table1 = (r'\noindent\textbf{Table 1 -- Final Bridge Geometry (after optimization)}' + '\n\n'
-              r'\vspace{0.4em}' + '\n'
+              r'\reportSmallGap' + '\n'
               r'\noindent' + '\n'
               r'\begin{tabular}{' + col_spec + '}\n'
               r'\hline' + '\n'
@@ -223,20 +236,17 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + cs_fig + '\n\n' + geom_fig + '\n\n' + table1 + r"""
 
-\vspace{0.4em}
+\reportSmallGap
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. A value $< 1.0$ indicates a passing check.}
 
-\vspace{1em}
+\reportTableGap
 
 \section*{Key Design Outcomes Summary}
 \phantomsection
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
-\noindent Girder design pass \\
-Cross bracing design pass \\
-End Diaphragm design pass \\
-Deck design pass
+\noindent """ + outcomes + r"""
 
 \section*{Design Assumptions and Limitations}
 \phantomsection

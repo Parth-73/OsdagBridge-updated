@@ -124,10 +124,9 @@ def _finite_number(value):
 
 
 def _chart_figure(path):
-    # A chart is part of its chapter. Keep it in source order and let the whole
-    # image move to the next page when it cannot fit in the remaining space.
-    return (
-        "\n" + r"\par\addvspace{\intextsep}" + "\n"
-        + r"\noindent\makebox[\linewidth][c]{\includegraphics[width=\linewidth]{"
-        + path + r"}}\par" + "\n"
-    )
+    from pylatex import Figure, NoEscape
+
+    figure = Figure(position="H")
+    figure.append(NoEscape(r"\centering"))
+    figure.add_image(path, width=NoEscape(r"\linewidth"))
+    return "\n" + figure.dumps() + "\n"

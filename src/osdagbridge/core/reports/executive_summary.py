@@ -180,12 +180,14 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     return r"""
 \newpage
 {\centering\Large\bfseries Executive Summary\par}
+\phantomsection
 \addcontentsline{toc}{chapter}{Executive Summary}
 \vspace{0.8em}
 
 This section provides a concise summary of the bridge design, key inputs, governing loads, and final design outcomes.
 
 \section*{Project Overview}
+\phantomsection
 \addcontentsline{toc}{section}{Project Overview}
 \label{sec:project-overview}
 
@@ -227,6 +229,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \vspace{1em}
 
 \section*{Key Design Outcomes Summary}
+\phantomsection
 \addcontentsline{toc}{section}{Key Design Outcomes Summary}
 \label{sec:key-outcomes}
 
@@ -236,8 +239,9 @@ End Diaphragm design pass \\
 Deck design pass
 
 \section*{Design Assumptions and Limitations}
+\phantomsection
 \addcontentsline{toc}{section}{Design Assumptions and Limitations}
-\label{sec:assumptions}
+\label{sec:executive-assumptions}
 
 \begin{itemize}
 \item Additional inputs not provided by the user were assumed by software per IRC/IS code defaults or practical consideration.

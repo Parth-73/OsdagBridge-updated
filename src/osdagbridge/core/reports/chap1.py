@@ -1,4 +1,5 @@
 from osdagbridge.core.reports.report_utils import _tex
+from .styles import break_long_words
 
 
 def ch1_project_info(m):
@@ -12,7 +13,7 @@ This section records all project metadata as entered by the designer.
 
 \begin{tabular}{|L{5.5cm}|L{8.5cm}|}
 \hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
+\textbf{Project Name} & """ + break_long_words(m.project_name) + r""" \\
 \hline
 \textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
 \hline

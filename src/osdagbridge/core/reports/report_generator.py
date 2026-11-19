@@ -104,6 +104,7 @@
 #==============================================================================
 
 import os, shutil, logging, datetime, tempfile, subprocess
+from pathlib import Path
 from dataclasses import dataclass, field
 from typing import Optional, List, Literal
 
@@ -120,6 +121,7 @@ from osdagbridge.core.utils.common import (
 
 from osdagbridge.core.reports.report_utils import _tex
 from .executive_summary import executive_summary
+from .styles import break_long_words, preamble
 from .chap1 import ch1_project_info
 from .chap2 import ch2_input_parameters
 from .chap3 import ch3_loads
@@ -146,136 +148,6 @@ logger = logging.getLogger(__name__)
 # ═══════════════════════════════════════════════════════════════════════════════
 # PREAMBLE
 # ═══════════════════════════════════════════════════════════════════════════════
-
-def preamble(project_name, job_number, report_date, report_version='Rev 0'):
-    pn = _tex(project_name)
-    jn = _tex(job_number)
-    rd = _tex(report_date)
-    rv = _tex(report_version)
-    return r"""
-\documentclass[12pt,a4paper]{report}
-
-% Packages
-\usepackage[a4paper, margin=1in]{geometry}
-\usepackage{graphicx}
-\usepackage{amsmath}
-\usepackage{amssymb}
-\usepackage{booktabs}
-\usepackage{array}
-\usepackage{tabularx}
-\usepackage{float}
-\usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
-\usepackage{xcolor}
-\usepackage{setspace}
-\usepackage{enumitem}
-\usepackage{caption}
-
-\captionsetup{
-    labelfont=bf,
-    justification=raggedright,
-    singlelinecheck=false,
-    format=plain
-}
-\usepackage{subcaption}
-\usepackage{multirow}
-\usepackage{colortbl}
-\usepackage{longtable}
-\setlength{\LTleft}{\fill}
-\setlength{\LTright}{\fill}
-\usepackage{titlesec}
-\usepackage{titletoc}
-\usepackage{lastpage}
-\usepackage{makecell}
-\usepackage{etoolbox}
-\usepackage{needspace}
-
-\numberwithin{table}{chapter}
-\numberwithin{figure}{chapter}
-% Table layout and spacing: consistent padding, row height, and longtable pre/post skips
-\setlength{\tabcolsep}{6pt}
-\renewcommand{\arraystretch}{1.12}
-\setlength{\LTpre}{0pt}
-\setlength{\LTpost}{6pt}
-% Table rules (outline thickness) and small extra row height for clarity
-\setlength{\arrayrulewidth}{0.5pt}
-\setlength{\extrarowheight}{0.6pt}
-
-% Prevent tables from overflowing past the page bottom:
-% if fewer than 5 baseline-skips remain, break to the next page first.
-\BeforeBeginEnvironment{table}{\needspace{5\baselineskip}}
-\BeforeBeginEnvironment{longtable}{\needspace{5\baselineskip}}
-
-\definecolor{osdagGreen}{HTML}{91B014}
-
-\fancypagestyle{main}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{plain}{
-  \fancyhf{}
-  \fancyhead[L]{""" + pn + r""" $|$ """ + jn + r"""}
-  \fancyhead[R]{""" + rd + r""" $|$ """ + rv + r"""}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\headrule}{\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{2pt}}
-  \renewcommand{\footrule}{%
-    \ifbool{hasSDonPage}{%
-      \vspace{-20pt}%
-      \hbox to \headwidth{\textcolor{black}{\footnotesize\textit{* Software default value}}\hfil}%
-      \vspace{4pt}%
-    }{%
-      \vspace{-8pt}%
-    }%
-    \color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}%
-  }
-}
-\fancypagestyle{firstpage}{
-  \fancyhf{}
-  \renewcommand{\headrulewidth}{0pt}
-  \fancyfoot[L]{Osdag $|$ FOSSEE $|$ Indian Institute of Technology Bombay}
-  \fancyfoot[R]{Page \thepage\ of \pageref{LastPage}}
-  \renewcommand{\footrule}{\vspace{-8pt}\color{osdagGreen}\hrule width\headwidth height 1pt \vspace{6pt}}
-}
-\pagestyle{main}
-\setstretch{1.15}
-
-% Custom Commands
-\newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
-\newcommand{\todo}[1]{\colorbox{yellow}{TODO: #1}}
-\newcolumntype{L}[1]{>{\raggedright\arraybackslash}p{#1}}
-\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
-\newcolumntype{R}[1]{>{\raggedleft\arraybackslash}p{#1}}
-
-% Software-default asterisk
-\newcommand{\sdstar}{\textsuperscript{*}}
-\newbool{hasSDonPage}
-\boolfalse{hasSDonPage}
-\newcommand{\markSD}{\global\booltrue{hasSDonPage}}
-\renewcommand{\sdstar}{\textsuperscript{*}\markSD{}}
-\AddToHook{shipout/before}{\global\boolfalse{hasSDonPage}}
-
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
-
-\begin{document}
-"""
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # TITLE PAGE
@@ -306,7 +178,7 @@ def title_page(m, osdag_logo, org_logo):
 """
 
     return r"""
-\begin{titlepage}
+\begingroup
 \thispagestyle{firstpage}
 \centering
 \vspace*{1.5cm}
@@ -316,7 +188,7 @@ def title_page(m, osdag_logo, org_logo):
 {\Large Design Report}\\[1.5cm]
 \begin{tabular}{|L{4cm}|L{10cm}|}
 \hline
-\textbf{Project Name} & """ + _tex(m.project_name) + r""" \\
+\textbf{Project Name} & """ + break_long_words(m.project_name) + r""" \\
 \hline
 \textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
 \hline
@@ -335,7 +207,7 @@ def title_page(m, osdag_logo, org_logo):
 \textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
 \hline
 \end{tabular}
-\end{titlepage}
+\par\endgroup\clearpage
 """
 
 
@@ -345,10 +217,6 @@ def title_page(m, osdag_logo, org_logo):
 
 def toc_section():
     return r"""
-% Chapter / TOC Formatting
-\titleformat{\chapter}[block]
-  {\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{0pt}{10pt}
 \setcounter{tocdepth}{2}
 
 % TOC styling using titletoc
@@ -370,7 +238,6 @@ def toc_section():
   {\hspace*{-3.2em}}
   {\hfill\contentspage}
 
-\newpage
 \renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
 \tableofcontents
 """
@@ -572,19 +439,28 @@ class ReportDataBridge:
         val = self._cb_osdag(pair, member, force_type).get("capacity_kN")
         return f"{float(val):.3f}" if val is not None else ""
 
+    def get_cb_member_result(self, pair: str, member: str, force_type: str) -> dict:
+        """Return the existing numerical design summary for this bracing member."""
+        return self._cb_osdag(pair, member, force_type)
+
     def get_cb_efficiency(self, pair: str, member: str, force_type: str) -> str:
         """Utilization ratio (efficiency)."""
         val = self._cb_osdag(pair, member, force_type).get("efficiency")
         return f"{float(val):.3f}" if val is not None else ""
 
     def get_cb_slenderness(self, pair: str, member: str) -> str:
-        """KL/r — same for tension and compression (geometry-based)."""
+        """KL/r formatted for the detailed bracing tables."""
+        value = self.get_cb_slenderness_value(pair, member)
+        return f"{float(value):.1f}" if value is not None else ""
+
+    def get_cb_slenderness_value(self, pair: str, member: str):
+        """KL/r as stored by the bracing designer."""
         # Prefer compression result (slenderness is more meaningful there)
         for ft in ("compression", "tension"):
             val = self._cb_osdag(pair, member, ft).get("slenderness")
             if val is not None:
-                return f"{float(val):.1f}"
-        return ""
+                return val
+        return None
 
     def get_cb_status(self, pair: str, member: str, force_type: str) -> str:
         """PASS / FAIL based on UR <= 1.0."""
@@ -899,6 +775,8 @@ def generate_report(payload, request):
             quantities = calculate_material_quantities(payload.inputs, payload.output_dict)
             payload.inputs.update(quantities)
 
+            image_dir = Path(tmp_images) if payload.options.include_figures else None
+
             # ── Assemble LaTeX document (fig_paths now has tmp_dir paths) ──
             bridge = ReportDataBridge(payload.output_dict, payload.inputs, payload)
             span_m = float(payload.inputs.get(KEY_SPAN, 0) or 0)
@@ -924,11 +802,11 @@ def generate_report(payload, request):
             if 'analysis' in secs:
                 doc_parts.append(ch4_analysis(payload.analysis_summary, fig_paths, bridge, span_m))
             if 'design_checks' in secs:
-                doc_parts.append(ch5_design_checks(payload.design_checks, bridge))
+                doc_parts.append(ch5_design_checks(payload.design_checks, bridge, image_dir=image_dir))
             if 'drawings' in secs and payload.options.include_figures:
                 doc_parts.append(ch6_drawings(fig_paths))
 
-            doc_parts.append(ch7_quantities(payload.inputs))
+            doc_parts.append(ch7_quantities(payload.inputs, image_dir=image_dir))
 
             mode = str(payload.inputs.get(KEY_DESIGN_MODE, "Optimized")).strip().lower()
             is_custom = mode in {"custom", "customized"}
@@ -942,51 +820,34 @@ def generate_report(payload, request):
             full_tex = "\n".join(doc_parts)
 
 
-            # NOTE: longtable header repetition is handled per-table in each
-            # chapter file (e.g. \endfirsthead / \endhead).  No automatic
-            # post-processing is applied here to avoid mis-ordering captions
-            # and column headings.
-
             tmp_tex = os.path.join(tmp_dir, request.file_stem + '.tex')
             tmp_pdf = os.path.join(tmp_dir, request.file_stem + '.pdf')
 
             with open(tmp_tex, 'w', encoding='utf-8') as f:
                 f.write(full_tex)
 
-            # Compile twice for TOC and references
+            shutil.copy2(tmp_tex, tex_path)
+            # Resolve references and TOC on a second pass after successful compilation.
+            kwargs = {"cwd": tmp_dir, "capture_output": True, "check": False}
+            if os.name == 'nt':
+                kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
             for _ in range(2):
-                try:
-                    kwargs = {
-                        'cwd': tmp_dir,
-                        'stdout': subprocess.PIPE,
-                        'stderr': subprocess.PIPE,
-                        'check': False,
-                        'env': os.environ.copy()
-                    }
-                    if os.name == 'nt':
-                        kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
-                    
-                    res = subprocess.run(
-                        [compiler, '-interaction=nonstopmode', request.file_stem + '.tex'],
-                        **kwargs
-                    )
-                except Exception as exc:
-                    logger.warning(f"pdflatex run failed: {exc}")
+                result = subprocess.run(
+                    [compiler, "-interaction=nonstopmode", "-halt-on-error", request.file_stem + ".tex"],
+                    **kwargs,
+                )
+                if result.returncode:
+                    logger.error("pdflatex failed (%s):\n%s\n%s", result.returncode,
+                                 result.stdout.decode("utf-8", "replace"),
+                                 result.stderr.decode("utf-8", "replace"))
+                    return ReportResult(pdf_path=None, tex_path=tex_path)
+            if not os.path.exists(tmp_pdf):
+                logger.error("pdflatex completed without producing a PDF.")
+                return ReportResult(pdf_path=None, tex_path=tex_path)
+            shutil.copy2(tmp_pdf, pdf_path)
 
-            if os.path.exists(tmp_tex):
-                shutil.copy2(tmp_tex, tex_path)
-            if os.path.exists(tmp_pdf):
-                shutil.copy2(tmp_pdf, pdf_path)
-
-        if os.path.exists(pdf_path):
-            logger.info("Report generated: %s", pdf_path)
-            return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
-
-        logger.error("pdflatex ran but no PDF was produced.")
-        if 'res' in locals():
-            logger.error("pdflatex STDOUT:\n%s", res.stdout.decode('utf-8', 'ignore'))
-            logger.error("pdflatex STDERR:\n%s", res.stderr.decode('utf-8', 'ignore'))
-        return ReportResult(pdf_path=None, tex_path=tex_path)
+        logger.info("Report generated: %s", pdf_path)
+        return ReportResult(pdf_path=pdf_path, tex_path=tex_path)
 
     except Exception as exc:
         logger.error("generate_report failed: %s", exc, exc_info=True)

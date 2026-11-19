@@ -1,3 +1,5 @@
+import math
+
 from osdagbridge.core.utils.common import (
     KEY_MP_GD_MEMBER_ID,
     KEY_MP_GD_SELECT_GIRDER,
@@ -15,14 +17,12 @@ def _tex(value):
     # that pdflatex cannot render.
     for uni, ascii_ in [('∠', 'L'), ('ⅹ', 'x'), ('×', 'x')]:
         s = s.replace(uni, ascii_)
-    s = s.replace('\\', r'\textbackslash{}')
-    for ch, esc in [('&', r'\&'), ('%', r'\%'), ('$', r'\$'), ('#', r'\#'),
-                    ('{', r'\{'), ('}', r'\}'),          
-                    ('_', r'\_\allowbreak{}'),            
-                    ('~', r'\textasciitilde{}'), ('^', r'\^{}')]:
-        s = s.replace(ch, esc)
-    s = s.replace(':', r':\allowbreak{}')
-    return s
+    escapes = {
+        "\\": r"\textbackslash{}", "&": r"\&", "%": r"\%", "$": r"\$",
+        "#": r"\#", "{": r"\{", "}": r"\}", "_": r"\_\allowbreak{}",
+        "~": r"\textasciitilde{}", "^": r"\textasciicircum{}", ":": r":\allowbreak{}",
+    }
+    return "".join(escapes.get(char, char) for char in s)
 
 
 def _render_value(source_dict, key, unit=""):
@@ -86,7 +86,7 @@ def _fig_or_placeholder(path, caption, width=r'0.9\textwidth'):
                 r'\end{figure}')
     return (r'\begin{figure}[H]' + '\n'
             r'\centering' + '\n'
-            r'\fbox{\parbox{0.97\textwidth}{' + '\n'
+            r'\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{' + '\n'
             r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
             r'}}' + '\n'
             r'\caption*{' + caption + '}\n'
@@ -100,16 +100,34 @@ def _fig_embed(path, caption, width=r'\textwidth', height=None):
         if height:
             opts += ',height=' + height + ',keepaspectratio'
         return (r'\begin{figure}[H]' + '\n'
-                r'\vspace{-0.5em}' + '\n'
                 r'\centering' + '\n'
                 r'\includegraphics[' + opts + ']{' + p + '}\n'
-                r'\vspace{0.5em}' + '\n'
                 r'\caption*{\small ' + caption + '}\n'
-                r'\vspace{-0.5em}' + '\n'
                 r'\end{figure}')
     # fbox placeholder — matches template exactly
-    return (r'\noindent\fbox{\parbox{0.97\textwidth}{' + '\n'
+    return (r'\par\noindent\fbox{\parbox{\dimexpr\linewidth-2\fboxsep-2\fboxrule\relax}{' + '\n'
             r'\textit{[ PLACEHOLDER: ' + caption + r' ]}' + '\n'
-            r'}}')
+            r'}}\par' + '\n')
 
 
+
+
+def _finite_number(value):
+    """Convert numeric report data, preserving zero and rejecting missing values."""
+    if isinstance(value, bool):
+        return None
+    try:
+        value = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    return value if math.isfinite(value) else None
+
+
+def _chart_figure(path):
+    # A chart is part of its chapter. Keep it in source order and let the whole
+    # image move to the next page when it cannot fit in the remaining space.
+    return (
+        "\n" + r"\par\addvspace{\intextsep}" + "\n"
+        + r"\noindent\makebox[\linewidth][c]{\includegraphics[width=\linewidth]{"
+        + path + r"}}\par" + "\n"
+    )

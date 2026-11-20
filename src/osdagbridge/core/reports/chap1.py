@@ -1,4 +1,3 @@
-from osdagbridge.core.reports.report_utils import _tex
 from .styles import break_long_words
 
 
@@ -15,17 +14,17 @@ This section records all project metadata as entered by the designer.
 \hline
 \textbf{Project Name} & """ + break_long_words(m.project_name) + r""" \\
 \hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
+\textbf{Project Location} & """ + break_long_words(m.project_location or "Not specified") + r""" \\
 \hline
-\textbf{Designer} & """ + _tex(m.designer) + r""" \\
+\textbf{Designer} & """ + break_long_words(m.designer or "Not specified") + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+\textbf{Reviewer} & """ + break_long_words(m.reviewer or "Not specified") + r""" \\
 \hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
+\textbf{Organization} & """ + break_long_words(m.company or "Not specified") + r""" \\
 \hline
-\textbf{Client} & """ + _tex(m.client) + r""" \\
+\textbf{Client} & """ + break_long_words(m.client or "Not specified") + r""" \\
 \hline
-\textbf{Software Version} & OsdagBridge \\
+\textbf{Software} & OsdagBridge \\
 \hline
 \end{tabular}
 

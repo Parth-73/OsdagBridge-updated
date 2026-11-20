@@ -162,7 +162,11 @@ def test_generate_report_compiles(tmp_path, long_report):
     if shutil.which("pdftotext"):
         extracted = subprocess.check_output(["pdftotext", report.pdf_path, "-"], text=True)
         pages = [page for page in extracted.split("\f") if page.strip()]
-        assert [int(re.search(r"Page (\d+) of", page)[1]) for page in pages] == list(range(1, len(pages) + 1))
+        for i, page in enumerate(pages, start=1):
+            assert f"Page {i} of {len(pages)}" in page
+        if long_report:
+            assert "Table of Contents" in pages[1]
+            assert pages[2].count("Executive Summary") == 1
         assert "Vehicle Live Loads" in extracted and "Footpath Live Loads" in extracted
         assert "Critical Design Failures and Warnings" in extracted
         assert not re.search(r"\b(?:nan|inf)\b|\\(?:begin|textbf|placeholder)", extracted, re.I)

@@ -41,6 +41,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % Packages
 \usepackage[a4paper,hmargin=16mm,top=14mm,bottom=17mm,
   includeheadfoot,headheight=28pt,headsep=10pt,footskip=39pt]{geometry}
+\input{glyphtounicode}
+\pdfgentounicode=1
 \usepackage{graphicx}
 \setkeys{Gin}{height=0.67\textheight,keepaspectratio}
 \usepackage{amsmath}
@@ -50,7 +52,8 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 \usepackage{tabularx}
 \usepackage{float}
 \usepackage{fancyhdr}
-\usepackage[hidelinks]{hyperref}
+\usepackage[hidelinks,unicode]{hyperref}
+\pdfstringdefDisableCommands{\def\allowbreak{}}
 \usepackage{xcolor}
 \usepackage{setspace}
 \usepackage{enumitem}
@@ -135,7 +138,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
   \reportfooter
 }
 \pagestyle{main}
-\setstretch{1.15}
+\setstretch{1.08}
 
 % Custom Commands
 \newcommand{\placeholder}[1]{\textit{\textless #1\textgreater}}
@@ -147,9 +150,7 @@ def preamble(project_name, job_number, report_date, report_version='Rev 0'):
 % Software-default asterisk
 \newcommand{\sdstar}{\textsuperscript{*}}
 
-\title{\Large\textbf{OsdagBridge} \\ \normalsize Open Source Software for Steel Girder Bridge Design \\ \vspace{2cm} \large Design Report}
-\author{}
-\date{}
+
 
 \begin{document}
 \titleformat{\chapter}[block]

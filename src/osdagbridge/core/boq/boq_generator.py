@@ -222,7 +222,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             quantities["shear_studs_qty"] = str(total_studs)
             
             studs_total_vol = total_studs * stud_vol
-            quantities["shear_studs_vol_total"] = f"{studs_total_vol:.2f}"
+            quantities["shear_studs_vol_total"] = f"{studs_total_vol:.4f}"
             
             # density of steel = 7850 kg/m^3 = 7.85 tonnes/m^3
             single_stud_wt = stud_vol * 7.85
@@ -292,7 +292,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             
             quantities["bracing_top_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {top_chord_vol_single:.5f}\\text{{ m}}^3$"
             quantities["bracing_top_qty"] = str(top_chord_qty)
-            quantities["bracing_top_vol_total"] = f"{top_chord_vol_total:.2f}" if top_chord_enabled else "0.00"
+            quantities["bracing_top_vol_total"] = f"{top_chord_vol_total:.4f}" if top_chord_enabled else "0.00"
             quantities["bracing_top_wt_single"] = f"{top_chord_wt_single:.4f}"
             quantities["bracing_top_wt_total"] = f"{top_chord_wt_total:.2f}" if top_chord_enabled else "0.00"
 
@@ -305,7 +305,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             
             quantities["bracing_bot_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {spacing:.2f}\\text{{ m}} = {bot_chord_vol_single:.5f}\\text{{ m}}^3$"
             quantities["bracing_bot_qty"] = str(bot_chord_qty)
-            quantities["bracing_bot_vol_total"] = f"{bot_chord_vol_total:.2f}" if bot_chord_enabled else "0.00"
+            quantities["bracing_bot_vol_total"] = f"{bot_chord_vol_total:.4f}" if bot_chord_enabled else "0.00"
             quantities["bracing_bot_wt_single"] = f"{bot_chord_wt_single:.4f}"
             quantities["bracing_bot_wt_total"] = f"{bot_chord_wt_total:.2f}" if bot_chord_enabled else "0.00"
 
@@ -318,7 +318,7 @@ def calculate_material_quantities(inputs: dict, outputs: dict) -> dict:
             
             quantities["bracing_diag_vol_formula"] = f"${bracing_area:.5f}\\text{{ m}}^2 \\times {bracing_len:.2f}\\text{{ m}} = {diag_vol_single:.5f}\\text{{ m}}^3$"
             quantities["bracing_diag_qty"] = str(diags_qty)
-            quantities["bracing_diag_vol_total"] = f"{diag_vol_total:.2f}"
+            quantities["bracing_diag_vol_total"] = f"{diag_vol_total:.4f}"
             quantities["bracing_diag_wt_single"] = f"{diag_wt_single:.4f}"
             quantities["bracing_diag_wt_total"] = f"{diag_wt_total:.2f}"
         else:

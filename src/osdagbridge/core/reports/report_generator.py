@@ -158,7 +158,7 @@ def title_page(m, osdag_logo, org_logo):
     if osdag_logo:
         lhs = r'\includegraphics[width=\linewidth,keepaspectratio]{' + osdag_logo.replace('\\', '/') + r'}'
     else:
-        lhs = r'\textit{(Osdag Logo)}'
+        lhs = ""
 
     if org_logo:
         rhs = r'\includegraphics[width=\linewidth,height=2.2cm,keepaspectratio]{' + org_logo.replace('\\', '/') + r'}'
@@ -191,21 +191,21 @@ def title_page(m, osdag_logo, org_logo):
 \hline
 \textbf{Project Name} & """ + break_long_words(m.project_name) + r""" \\
 \hline
-\textbf{Project Location} & """ + _tex(m.project_location) + r""" \\
+\textbf{Project Location} & """ + break_long_words(m.project_location or "Not specified") + r""" \\
 \hline
-\textbf{Author / Designer} & """ + _tex(m.designer) + r""" \\
+\textbf{Author / Designer} & """ + break_long_words(m.designer or "Not specified") + r""" \\
 \hline
-\textbf{Reviewer} & """ + _tex(m.reviewer) + r""" \\
+\textbf{Reviewer} & """ + break_long_words(m.reviewer or "Not specified") + r""" \\
 \hline
-\textbf{Organization} & """ + _tex(m.company) + r""" \\
+\textbf{Organization} & """ + break_long_words(m.company or "Not specified") + r""" \\
 \hline
-\textbf{Client Name and Organization} & """ + _tex(m.client) + r""" \\
+\textbf{Client Name and Organization} & """ + break_long_words(m.client or "Not specified") + r""" \\
 \hline
-\textbf{Job Number} & """ + _tex(m.job_number) + r""" \\
+\textbf{Job Number} & """ + break_long_words(m.job_number or "Not specified") + r""" \\
 \hline
-\textbf{Date} & """ + _tex(m.report_date) + r""" \\
+\textbf{Date} & """ + break_long_words(m.report_date or "Not specified") + r""" \\
 \hline
-\textbf{Report Version} & """ + (_tex(m.subtitle) if m.subtitle else '') + r""" \\
+\textbf{Report Version} & """ + break_long_words(m.subtitle or 'Rev 0') + r""" \\
 \hline
 \end{tabular}
 \par\endgroup\clearpage
@@ -241,6 +241,7 @@ def toc_section():
 
 \renewcommand{\contentsname}{\centering\Large\bfseries Table of Contents}
 \tableofcontents
+\clearpage
 """
 
 
@@ -725,6 +726,11 @@ def generate_report(payload, request):
 
             doc_parts = []
             doc_parts.append(preamble(payload.metadata.project_name, payload.metadata.job_number, payload.metadata.report_date, payload.metadata.subtitle or 'Rev 0'))
+            doc_parts.append(
+                r"\hypersetup{pdftitle={OsdagBridge Design Report - "
+                + _tex(payload.metadata.project_name)
+                + r"},pdfauthor={" + _tex(payload.metadata.designer) + "}}"
+            )
             doc_parts.append(title_page(payload.metadata, osdag_logo_latex, org_logo_latex))
 
             if payload.options.include_toc:
@@ -769,11 +775,11 @@ def generate_report(payload, request):
                 f.write(full_tex)
 
             shutil.copy2(tmp_tex, tex_path)
-            # Resolve references and TOC on a second pass after successful compilation.
+            # The TOC can change pagination after its first populated pass.
             kwargs = {"cwd": tmp_dir, "capture_output": True, "check": False}
             if os.name == 'nt':
                 kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
-            for _ in range(2):
+            for _ in range(3):
                 result = subprocess.run(
                     [compiler, "-interaction=nonstopmode", "-halt-on-error", request.file_stem + ".tex"],
                     **kwargs,

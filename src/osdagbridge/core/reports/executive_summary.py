@@ -45,11 +45,13 @@ def _result_tables(checks):
 
 
 def executive_summary(input_dict, output_dict, fig_paths) -> str:
-    plan_fig = _fig_or_placeholder(fig_paths.get('girder_top'), 'Overall Bridge Plan')
-    cs_fig = _fig_or_placeholder(fig_paths.get('cross_section'),
-                                  'Typical Cross-Section (with girder, deck, barriers, footpath)')
-    geom_fig = _fig_or_placeholder(fig_paths.get('final_geometry'),
-                                    '3D View of Bridge Superstructure')
+    views = (
+        ("plan", "Overall Bridge Plan"),
+        ("cross_section", "Typical Cross-Section"),
+        ("final_geometry", "3D View of Bridge Superstructure"),
+    )
+    figures = "\n".join(_fig_or_placeholder(fig_paths[key], caption)
+                        for key, caption in views if fig_paths.get(key))
 
     checks = list(collect_design_checks(input_dict, output_dict))
     status = aggregate_status(checks)
@@ -95,13 +97,10 @@ def executive_summary(input_dict, output_dict, fig_paths) -> str:
     ) if failures else r"\noindent No failures were recorded in the available mandatory checks."
 
     return r"""
-\newpage
-{\centering\Large\bfseries Executive Summary\par}
 \phantomsection
 \addcontentsline{toc}{chapter}{Executive Summary}
+{\centering\Large\bfseries Executive Summary\par}
 \vspace{0.8em}
-
-This section provides a concise summary of the bridge design, key inputs, governing loads, and final design outcomes.
 
 \section*{Project Overview}
 \phantomsection
@@ -134,9 +133,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 \end{tabular}
 
 
-""" + plan_fig + r"""
-
-""" + cs_fig + '\n\n' + geom_fig + '\n\n' + r"""
+""" + figures + r"""
 
 \reportSmallGap
 \noindent\textit{Note: Utilization ratio (UR) = demand / capacity. The applicable design check determines the acceptance criterion. An optimized section is an attempt and may retain failed or unevaluated checks.}
@@ -150,6 +147,7 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 """ + outcomes + r"""
 
+\needspace{10\baselineskip}
 \section*{Critical Design Failures and Warnings}
 \phantomsection
 \addcontentsline{toc}{section}{Critical Design Failures and Warnings}
@@ -170,5 +168,5 @@ This section provides a concise summary of the bridge design, key inputs, govern
 
 % Restore numbered chapter format
 \titleformat{\chapter}[block]{\normalfont\Large\bfseries\centering}{\thechapter}{1em}{}
-\titlespacing*{\chapter}{0pt}{-30pt}{10pt}
+\titlespacing*{\chapter}{0pt}{0pt}{10pt}
 """

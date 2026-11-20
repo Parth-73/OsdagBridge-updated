@@ -973,12 +973,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     chart_tex = ""
     if image_dir is not None:
         chart_tex = "".join(_chart_figure(path) for path in generate_utilization_charts(chart_rows, image_dir))
-        if chart_tex:
-            chart_tex += r"\noindent\textit{Charts include checks with available utilization ratios.}"
-        else:
+        if not chart_tex:
             chart_tex = r"\noindent\textit{Utilization ratios are unavailable for charting.}"
-        if not any(label.startswith("End Diaphragm") and ratio is not None for label, ratio in chart_rows):
-            chart_tex += r"\par\noindent End-diaphragm utilization ratios are unavailable for this design."
 
     return r"""
 \chapter{Design Checks}
@@ -1190,7 +1186,6 @@ Punching Shear Check & $v_{Ed} \leq v_{Rd,c}$ & """ + (f"{_dkv(KEY_DD_PUNCH_VED)
 \noindent\textit{Note: Punching shear reinforcement not typically required for deck slabs with $d \geq 200$ mm and adequate longitudinal reinforcement.}
 
 \reportTableGap
-\clearpage
 \begin{longtable}{|L{7cm}|>{\arraybackslash}p{8.5cm}|}
 \caption{\textbf{Crack Width Check (Deck Slab)}}\\
 """ + repeated_header(r"\textbf{Parameter} & \textbf{Value / Reference} \\[6pt]") + r"""\textnormal{Min. Reinforcement for Crack Control, $A_{s,min}$} & """ + _dkf(KEY_DD_AS_MIN, nd=0) + r""" mm²/m [IRC 112 Cl. 16.5.1] \\[6pt]

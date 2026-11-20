@@ -8,6 +8,19 @@ from osdagbridge.core.utils import common as keys
 from .report_utils import _finite_number
 
 
+def design_lane_count(inputs):
+    """Resolve the configured lane count or derive it from the carriageway width using IRC 6."""
+    lanes = _finite_number(inputs.get(keys.KEY_WC_LD_LANE_TABLE_COUNT))
+    if lanes is not None and lanes > 0 and lanes.is_integer():
+        return int(lanes)
+    width = _finite_number(inputs.get(keys.KEY_CARRIAGEWAY_WIDTH))
+    if width is not None and width > 0:
+        from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
+
+        return IRC6_2017.table_6(width)
+    return None
+
+
 def _location(value):
     if isinstance(value, str) and value.lstrip().startswith("{"):
         try:

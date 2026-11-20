@@ -1,6 +1,19 @@
 def ch6_drawings(fig_paths):
     """Render captured engineering drawings and mark unavailable views."""
 
+    heading = r"""
+\chapter{Drawings and Visualizations}
+\label{ch:drawings}
+"""
+    drawing_keys = (
+        "final_geometry", "cross_section", "girder_top", "girder_3d",
+        "section_preview", "stiffener_preview", "cb_diagram",
+        "cb_bracing", "cb_top_chord", "cb_bottom_chord",
+        "ed_diagram", "ed_bracing", "ed_top_chord", "ed_bottom_chord",
+    )
+    if not any(fig_paths.get(key) for key in drawing_keys):
+        return heading + "CAD drawings were unavailable when this report was generated."
+
     def _sec_fig(path, title, label=None):
         """Figure block: image first, numbered below. Placeholder if no path."""
         label_tex = (r'\label{' + label + '}' + "\n") if label else ''
@@ -96,9 +109,7 @@ def ch6_drawings(fig_paths):
     + ed_bottom
 )
 
-    return (r"""
-\chapter{Drawings and Visualizations}
-\label{ch:drawings}
+    return (heading + r"""
 
 Captured CAD views are shown where available. Unavailable drawings are identified in the corresponding section.
 

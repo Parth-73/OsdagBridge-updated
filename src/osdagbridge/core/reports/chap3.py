@@ -1,3 +1,4 @@
+from .inputs import design_lane_count
 from .tables import load_longtable, repeated_header
 
 # =============================================================================
@@ -15,7 +16,6 @@ from osdagbridge.core.utils.common import (
     KEY_BL_IRC_CLASS_FATIGUE,
     KEY_BL_IRC_CLASS_SV,
     KEY_CB_LOAD,
-    KEY_CARRIAGEWAY_WIDTH,
     KEY_FOOTPATH,
     KEY_LL_ECCENTRICITY,
     KEY_TS_FOOTPATH_WIDTH,
@@ -40,7 +40,6 @@ from osdagbridge.core.utils.common import (
     KEY_TL_BRIDGE_TEMP_MIN,
     KEY_TL_TEMP_FALL,
     KEY_TL_TEMP_RISE,
-    KEY_WC_LD_LANE_TABLE_COUNT,
     KEY_WC_MATERIAL,
     KEY_WC_THICKNESS,
 )
@@ -104,11 +103,7 @@ def _vehicle_rows(inputs, code):
     if not rows:
         rows.append(("No vehicle classes selected", "---", "---"))
 
-    # Use the selected design-lane count, with IRC Table 6 as the fallback.
-    lanes = _finite_number(inputs.get(KEY_WC_LD_LANE_TABLE_COUNT))
-    width = _finite_number(inputs.get(KEY_CARRIAGEWAY_WIDTH))
-    if lanes is None and width is not None and width > 0:
-        lanes = float(code.table_6(width))
+    lanes = design_lane_count(inputs)
 
     parameters = []
     if has_heavy:
@@ -116,8 +111,8 @@ def _vehicle_rows(inputs, code):
         parameters.append(("Class AA/70R impact factor (IRC 6 Cl. 208.3)", value, "---"))
     can_apply_braking = any(status in {"Yes", "---"} for status in braking)
     force = "Not selected" if not can_apply_braking else "Unavailable"
-    if can_apply_braking and lanes and lanes.is_integer() and lanes > 0:
-        force = f"{code.cl_211_2_braking_force(int(lanes)) * 9.81:.2f}"
+    if can_apply_braking and lanes:
+        force = f"{code.cl_211_2_braking_force(lanes) * 9.81:.2f}"
     parameters.append(("Lane-based braking load (IRC 6 Cl. 211.2)", force, "kN"))
     eccentricity = _render_value(inputs, KEY_LL_ECCENTRICITY)
     if eccentricity and can_apply_braking:

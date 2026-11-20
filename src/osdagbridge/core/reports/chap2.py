@@ -264,31 +264,24 @@ def _girder_tables(input_dict, n_girders):
 \hline
 """)
 
-    # Helper: one restraint/stiffener row
-    def _rst_row(g_lbl, i):
-        return (g_lbl + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_TORSIONAL_RESTRAINT}.G{i}.M1"))
-                + ', '
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_WARPING_RESTRAINT}.G{i}.M1"))
-                + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_GIRDER_WEB_TYPE}.G{i}.M1"))
-                + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_INTERMEDIATE}.G{i}.M1"))
-                + '; Spacing: '
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_INTERMEDIATE_SPACING}.G{i}.M1", ' mm'))
-                + '; Thickness: '
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS}.G{i}.M1", ' mm'))
-                + r""" & """
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_LONGITUDINAL}.G{i}.M1"))
-                + r""" & No.: """
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_NO_BEARING_STIFFENERS}.G{i}.M1"))
-                + '; Spacing: '
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_SPACING}.G{i}.M1", ' mm'))
-                + '; Thickness: '
-                + (_render_value(input_dict, f"{KEY_MP_STIFFENER_BEARING_THICKNESS}.G{i}.M1", ' mm'))
-                + r""" \\[8pt]
-\hline
-""")
+    def _rst_row(label, i):
+        fields = (
+            ("Torsional restraint", KEY_MP_GIRDER_TORSIONAL_RESTRAINT, ""),
+            ("Warping restraint", KEY_MP_GIRDER_WARPING_RESTRAINT, ""),
+            ("Web philosophy", KEY_MP_GIRDER_WEB_TYPE, ""),
+            ("Intermediate stiffeners", KEY_MP_STIFFENER_INTERMEDIATE, ""),
+            ("Intermediate spacing", KEY_MP_STIFFENER_INTERMEDIATE_SPACING, " mm"),
+            ("Intermediate thickness", KEY_MP_STIFFENER_INTERMEDIATE_THICKNESS, " mm"),
+            ("Longitudinal stiffeners", KEY_MP_STIFFENER_LONGITUDINAL, ""),
+            ("Bearing stiffener count", KEY_MP_STIFFENER_NO_BEARING_STIFFENERS, ""),
+            ("Bearing spacing", KEY_MP_STIFFENER_SPACING, " mm"),
+            ("Bearing thickness", KEY_MP_STIFFENER_BEARING_THICKNESS, " mm"),
+        )
+        rows = []
+        for name, key, unit in fields:
+            value = _render_value(input_dict, f"{key}.G{i}.M1", unit, missing="Not reported")
+            rows.append(f"{_tex(label)} & {name} & {value}" + r" \\ \hline")
+        return "\n".join(rows) + "\n"
 
     gen_rows = "".join([_gen_row(g_lbl, m_id, i) for g_lbl, m_id, i in entries_for_table])
     dim_rows = "".join([_dim_row(g_lbl, i) for g_lbl, _, i in entries_for_table])
@@ -309,18 +302,18 @@ def _girder_tables(input_dict, n_girders):
 \vspace{0.6em}
 
 \vspace{4pt}
-\begin{longtable}{|L{1.8cm}|L{2.3cm}|L{1.8cm}|p{4.8cm}|p{4.8cm}|}
+\begin{longtable}{|L{2cm}|R{3cm}|R{3cm}|R{3.6cm}|R{3.6cm}|}
 \caption{\textbf{Girder Section Dimensions}}\\
-""" + repeated_header(r"\textbf{Girder} & \textbf{Total Depth, D (mm)} & \textbf{Web, $t_w$ (mm)} & \textbf{Top Flange (b\textsubscript{tf}, t\textsubscript{tf}) mm} & \textbf{Bottom Flange (b\textsubscript{bf}, t\textsubscript{bf}) mm} \\[6pt]")
+""" + repeated_header(r"\textbf{Girder} & \makecell[r]{Total depth\\$D$ (mm)} & \makecell[r]{Web thickness\\$t_w$ (mm)} & \makecell[r]{Top flange\\$(b_{tf}, t_{tf})$ (mm)} & \makecell[r]{Bottom flange\\$(b_{bf}, t_{bf})$ (mm)} \\[6pt]")
             + dim_rows
             + r"""\end{longtable}
 
 \vspace{0.6em}
 
 \vspace{4pt}
-\begin{longtable}{|L{1.4cm}|p{2.2cm}|p{2.2cm}|p{3.0cm}|p{2.4cm}|p{2.2cm}|}
+\begin{longtable}{|L{2.2cm}|L{6cm}|L{6cm}|}
 \caption{\textbf{Girder Restraint and Stiffener Details}}\\
-""" + repeated_header(r"\textbf{Girder} & \textbf{Torsional / Warping Restraint} & \textbf{Web Philosophy} & \textbf{Inter\-me\-di\-ate Stiffeners} & \textbf{Longi\-tu\-di\-nal Stiffeners} & \textbf{Bearing Stiffener} \\[6pt]")
+""" + repeated_header(r"\textbf{Girder} & \textbf{Parameter} & \textbf{Value} \\[6pt]")
             + rst_rows
             + r"""\end{longtable}
 """)

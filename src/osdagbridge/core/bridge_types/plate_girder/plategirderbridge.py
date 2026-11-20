@@ -1337,6 +1337,10 @@ class PlateGirderBridge:
         model = self.grillage_model
         model.create_self_weight_load()
         model.create_deck_load(slab_thickness_m=deck_t_m)
+        self.output_dict["applied_dead_loads"] = {
+            "steel_lines": model.applied_steel_lines,
+            "deck_kN_m2": model.applied_deck_kN_m2,
+        }
         model.create_wearing_course_load(thickness_m=wc_t_m, density_kN_m3=wc_rho, partial_safety_factor=1.0)
         model.create_footpath_load()
         model.create_crash_barrier_load(barrier_load_kN_per_m=barrier_load_kN_m)

@@ -159,7 +159,17 @@ def _footpath_rows(inputs, code):
     return _load_rows(rows)
 
 
-def ch3_loads(input_dict):
+def ch3_loads(input_dict, output_dict=None):
+    applied = (output_dict or {}).get("applied_dead_loads") or {}
+    steel_rows = []
+    for line in applied.get("steel_lines") or []:
+        position = _render_value(line, "z_m", " m", missing="Not reported")
+        load = _render_value(line, "load_kN_m", " kN/m", missing="Not reported")
+        steel_rows.append(f"Steel self-weight at $z$ = {position} & {load}")
+    if not steel_rows:
+        steel_rows.append("Steel self-weight applied & Not reported")
+    steel_tex = "\n".join(row + r" \\ \hline" for row in steel_rows)
+
     from osdagbridge.core.utils.codes.irc6_2017 import IRC6_2017
 
     vehicle_rows, vehicle_parameters = _vehicle_rows(input_dict, IRC6_2017)
@@ -231,11 +241,14 @@ This section summarizes all loads applied to the bridge and the load combination
 \reportTableGap
 \begin{longtable}{|L{5.5cm}|p{10.0cm}|}
 \caption{\textbf{Dead Load -- Self Weight}}\\
-""" + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + r"""\textnormal{Steel Self-Weight Applied} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+""" + repeated_header(r"\textbf{parameter} & \textbf{value} \\", footer=True) + steel_tex + r"""
+\textnormal{Steel unit weight (material input)} & """ + (_render_value(input_dict, KEY_MATERIAL_GIRDER_DENSITY, ' kN/m\\textsuperscript{3}', missing='Not reported')) + r""" \\[6pt]
 \hline
-\textnormal{Concrete Deck Weight} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}')) + r""" \\[6pt]
+\textnormal{Concrete unit weight (material input)} & """ + (_render_value(input_dict, KEY_MATERIAL_DECK_DENSITY, ' kN/m\\textsuperscript{3}', missing='Not reported')) + r""" \\[6pt]
 \hline
-\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR)) + r""" \\[6pt]
+\textnormal{Concrete deck self-weight per unit area} & """ + _render_value(applied, "deck_kN_m2", r" kN/m$^2$", missing="Not reported") + r""" \\[6pt]
+\hline
+\textnormal{Self-Weight Factor} & """ + (_render_value(input_dict, KEY_PL_SELF_WEIGHT_FACTOR, missing="Not reported")) + r""" \\[6pt]
 \end{longtable}
 
 \reportTableGap

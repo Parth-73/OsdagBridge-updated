@@ -1573,6 +1573,7 @@ class IRC22CapacityCalculator:
 
         return {
             "design_guidance"    : False,
+            "checked_spacing_mm" : c,
             "H_max_mm"           : round(H_max, 1),
             "tq_req_1sided_mm"   : round(tq_req_1sided, 2),
             "tq_req_2sided_mm"   : round(tq_req_2sided, 2),
@@ -3315,6 +3316,7 @@ def run_design_check(
 
         section = g_config.section
         per_girder_results[g_name] = {
+            "intermediate_stiffener": g_cap.details.get("intermediate_stiffener") or {},
             "section_report_values": {
                 "depth_mm": section.D, "web_mm": section.tw,
                 "top_width_mm": section.bf_top, "bottom_width_mm": section.bf_bot,

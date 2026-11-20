@@ -411,6 +411,7 @@ class BridgeGrillageModel:
         DL_self_weight = og.create_load_case(name="SW")
 
         # iterate through all grillage transverse positions (except extreme edges)
+        applied_lines = []
         for z_pos in model.Mesh_obj.noz[1:-1]:
             A_girder_m2 = _area_for_z(z_pos)
             beam_mag = girder_self_weight_kN_m(A_girder_m2, STEEL_UNIT_WEIGHT_kN_m3) * kN / m  # N/m
@@ -425,8 +426,10 @@ class BridgeGrillageModel:
             )
 
             DL_self_weight.add_load(line_load)
+            applied_lines.append({"z_m": float(z_pos), "load_kN_m": beam_mag / (kN / m)})
 
         # store reference on the instance
+        self.applied_steel_lines = applied_lines
         self.self_weight_load_case = DL_self_weight
 
         model.add_load_case(DL_self_weight)
@@ -509,6 +512,7 @@ class BridgeGrillageModel:
         # -------------------------------------------------
         DL_deck = og.create_load_case(name="DD")
         DL_deck.add_load(deck_load)
+        self.applied_deck_kN_m2 = deck_mag / (kN / m**2)
         model.add_load_case(DL_deck)
 
         # store reference

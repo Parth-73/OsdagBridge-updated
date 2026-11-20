@@ -283,13 +283,21 @@ def ch5_design_checks(checks_data, bridge, *, image_dir=None) -> str:
 
     # Generate Table 5.7 rows
     t57_rows = []
-    for lbl, _ in girder_entries:
+    design = bridge.output_dict.get("design_results") or {}
+    for index, (lbl, _) in enumerate(girder_entries, 1):
+        girder = f"G{index}"
+        details = (sections.get(girder) or {}).get("intermediate_stiffener") or {}
+        spacing = _render_value(details, "checked_spacing_mm")
+        if not spacing and details.get("c_req_min_mm") is not None:
+            spacing = "Required minimum: " + _render_value(details, "c_req_min_mm")
+        if not spacing and girder == design.get("controlling_girder"):
+            spacing = _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING)
         t57_rows.append(
             r"\multirow{6}{*}{\makecell{" + _tex(lbl) + r"""}} & \textnormal{Shear Buckling Design Method} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_METHOD) + r""" \\*[6pt]
 \reportcline{2-3}
  & \textnormal{Intermediate Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_THICK) + r""" \\*[6pt]
 \reportcline{2-3}
- & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_INT_SPACING) + r""" \\*[6pt]
+ & \textnormal{Intermediate Stiffener Spacing (mm)} & """ + (spacing or "Not reported") + r""" \\*[6pt]
 \reportcline{2-3}
  & \textnormal{End Panel Stiffener Thickness (mm)} & """ + _render_value(bridge.output_dict, KEY_SD_STIFF_END_THICK) + r""" \\*[6pt]
 \reportcline{2-3}
@@ -972,6 +980,8 @@ Fatigue Shear Resistance, $Q_r$ & IRC 22 Table 8 ($\phi d$, $N_{sc}$) & """
     t522_content = "\n".join(_t522)
     chart_tex = ""
     if image_dir is not None:
+        chart_rows.extend((f"{check.member} {check.name}", check.ratio)
+                          for check in girder_checks if check.check_id == 8)
         chart_tex = "".join(_chart_figure(path) for path in generate_utilization_charts(chart_rows, image_dir))
         if not chart_tex:
             chart_tex = r"\noindent\textit{Utilization ratios are unavailable for charting.}"

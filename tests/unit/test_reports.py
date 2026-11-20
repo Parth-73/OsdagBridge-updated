@@ -212,3 +212,35 @@ def test_end_diaphragm_chart_uses_its_own_capacity_check(tmp_path, monkeypatch):
     report = ch5_design_checks([], bridge, image_dir=tmp_path)
     assert values["End Diaphragm – Tension"] == 0.8
     assert "End Diaphragm Capacity Checks" in report
+
+
+def test_applied_weights_are_separate_from_material_inputs():
+    missing = _table(ch3_loads({}), "Dead Load -- Self Weight")
+    assert "Steel self-weight applied & Not reported" in missing
+    report = ch3_loads({}, {"applied_dead_loads": {
+        "steel_lines": [{"z_m": 1.5, "load_kN_m": 3.25}], "deck_kN_m2": 0,
+    }})
+    assert "1.5 m & 3.25 kN/m" in report
+    assert "0 kN/m$^2$" in report
+
+
+def test_checked_girder_spacing_and_fatigue_chart(tmp_path, monkeypatch):
+    from osdagbridge.core.utils.common import KEY_MP_STIFFENER_INTERMEDIATE_SPACING
+    outputs = {"design_results": {"per_girder": {
+        "G1": {"intermediate_stiffener": {"checked_spacing_mm": 825}, "checks": [
+            {"check_id": 8, "name": "Fatigue Normal Stress", "dcr": 2.4}]},
+        "G2": {"checks": [{"check_id": 8, "name": "Fatigue Normal Stress", "dcr": 2.2}]},
+    }}}
+    inputs = {KEY_TS_NO_OF_GIRDERS: 2, f"{KEY_MP_STIFFENER_INTERMEDIATE_SPACING}.G2.M1": 777}
+    rows = {}
+    def capture(values, directory):
+        rows.update(values)
+        return []
+    monkeypatch.setattr("osdagbridge.core.reports.chap5.generate_utilization_charts", capture)
+    report = ch5_design_checks([], ReportDataBridge(outputs, inputs, None), image_dir=tmp_path)
+    table = _table(report, "Stiffener Design Summary")
+    assert "Spacing (mm)} & 825" in table
+    assert "Spacing (mm)} & Not reported" in table
+    assert "777" not in table
+    assert rows["G1 Fatigue Normal Stress"] == 2.4
+    assert rows["G2 Fatigue Normal Stress"] == 2.2
